@@ -10,7 +10,6 @@ import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -332,7 +331,6 @@ public abstract class Server {
         	Process pr = PB.command("bash","-c",s).start();
         	pr.waitFor();
         	BufferedReader buf = new BufferedReader(new InputStreamReader(pr.getInputStream()));
-        	String line = "";
         	out = buf.readLine();
     	}catch(Exception e) {
     		e.printStackTrace();
