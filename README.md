@@ -6,4 +6,4 @@ A developing project for web server made in java. All commits after this update 
 
 ## TO-DO
 - [ ] Performance improvements in SWS-Hybrid. Assigned: 9Feb. 2022. Completed: -
-- [ ] Code lib clean. Assigned: 9Feb. 2022. Completed: -
+- [x] Code lib clean. Assigned: 9Feb. 2022. Completed: 11Feb. 2022.
