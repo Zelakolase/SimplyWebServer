@@ -30,6 +30,7 @@ public abstract class Server {
 	static String commandFire = "java app %request%";
 	static SparkDB MIME = new SparkDB();
 	static String AddedResponseHeaders = ""; // Custom Response headers
+	static boolean is_linux = ! System.getProperty("os.name").contains("win");
 	static ProcessBuilder PB = new ProcessBuilder();
 	public static void main(String[] args) {
 		HashMap<String, String> arguments = new HashMap<String, String>();
@@ -304,19 +305,39 @@ public abstract class Server {
 	}
 
 	public static HashMap<String, byte[]> main(String req, byte[] body, byte[] additional) {
-		String to_stdin = (Arrays.toString(req.getBytes()) +" "+ Arrays.toString(body) +" "+ Arrays.toString(additional))
-				.replaceAll("\\[", "")
-				.replaceAll("\\]", "")
-				.replaceAll(",\\s+","\\;")
-				.replaceAll("null", "");
-		String[] reply = cmd(commandFire.replace("%request%", "<<< "+"'"+to_stdin+"'")).split(","); // response, code, mime
+		String to_stdin = "";
+		/*
+		 * Performance Improvement 11Feb. 2022.
+		 * A latency decrease up to 35%
+		 */
+		byte[] req_bytes = req.getBytes();
+		for(int i = 0;i < req_bytes.length; i++) {
+			to_stdin += String.valueOf(req_bytes[i])+";";
+		}
+		if(body.length > 0) {
+		for(int i = 0;i < body.length; i++) {
+			to_stdin += String.valueOf(body[i])+";";
+		}
+		if(additional.length > 0) {
+			for(int i = 0;i < additional.length; i++) {
+				String delimiter = ";";
+				if(i+1 == additional.length) delimiter = "";
+				to_stdin += String.valueOf(additional[i])+delimiter;
+			}
+		} else {
+			to_stdin += ";";
+		}
+		}else {
+			to_stdin += ";";
+		}
+		String[] reply = split(cmd(commandFire.replace("%request%", "<<< "+"'"+to_stdin+"'")),','); // response, code, mime
 		/**
 		 * Response "45;115" to byte arr {45,115}
 		 */
-		String[] bytes = reply[0].split(";"); // space delimiter
+		String[] bytes = split(reply[0],';'); // semicolon delimiter
 		byte[] response = new byte[bytes.length];
 		for(int i = 0;i<bytes.length;i++) {
-			response[i] = Byte.parseByte(bytes[i].trim());
+			response[i] = Byte.parseByte(bytes[i]);
 		}
 		return new HashMap<String, byte[]>() {{
 			put("content",response);
@@ -325,10 +346,36 @@ public abstract class Server {
 		}};
 		
 	}
+	public static String[] split(final String line, final char delimiter)
+	{
+	    CharSequence[] temp = new CharSequence[(line.length() / 2) + 1];
+	    int wordCount = 0;
+	    int i = 0;
+	    int j = line.indexOf(delimiter, 0); // first substring
+
+	    while (j >= 0)
+	    {
+	        temp[wordCount++] = line.substring(i, j);
+	        i = j + 1;
+	        j = line.indexOf(delimiter, i); // rest of substrings
+	    }
+
+	    temp[wordCount++] = line.substring(i); // last substring
+
+	    String[] result = new String[wordCount];
+	    System.arraycopy(temp, 0, result, 0, wordCount);
+
+	    return result;
+	}
 	public static String cmd(String s) {
     	String out = "";
     	try {
-        	Process pr = PB.command("bash","-c",s).start();
+    		Process pr;
+        	if (is_linux) {
+        		pr = PB.command("bash","-c",s).start();
+        	}else {
+        		pr = PB.command("cmd.exe","/C",s).start();
+        	}
         	pr.waitFor();
         	BufferedReader buf = new BufferedReader(new InputStreamReader(pr.getInputStream()));
         	out = buf.readLine();
