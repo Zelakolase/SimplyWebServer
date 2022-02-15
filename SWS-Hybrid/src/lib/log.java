@@ -11,7 +11,7 @@ public class log {
 
 	/**
 	 * Display error msg
-	 * 
+	 *
 	 * @param in message to print
 	 */
 	public static void e(String in) {
@@ -20,7 +20,7 @@ public class log {
 
 	/**
 	 * Display success msg
-	 * 
+	 *
 	 * @param in message to print
 	 */
 	public static void s(String in) {
@@ -29,7 +29,7 @@ public class log {
 
 	/**
 	 * Display informative msg
-	 * 
+	 *
 	 * @param in message to print
 	 */
 	public static void i(String in) {
@@ -38,7 +38,7 @@ public class log {
 
 	/**
 	 * Display error msg
-	 * 
+	 *
 	 * @param e         the exception object to gain data from
 	 * @param className the name of the class where the error happened
 	 * @param FuncName  the name of the function where the error happened

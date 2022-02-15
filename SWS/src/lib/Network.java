@@ -10,7 +10,7 @@ import java.util.zip.GZIPOutputStream;
 public class Network {
 	/**
 	 * GZIP Compression
-	 * 
+	 *
 	 * @param data data to compress in bytes
 	 * @return compressed data in bytes
 	 */
@@ -26,7 +26,7 @@ public class Network {
 
 	/**
 	 * HTTP Write Response Function
-	 * 
+	 *
 	 * @param DOS                  data stream to write to
 	 * @param ResponseData         the body of the http response
 	 * @param ContentType          the content type of the body
@@ -62,11 +62,11 @@ public class Network {
 
 	/**
 	 * Reads from socket into ArrayList
-	 * 
+	 *
 	 * @param MAX_REQ_SIZE the maximum kbytes to read
 	 */
 	public static ArrayList<Byte> read(DataInputStream DIS, int MAX_REQ_SIZE) {
-		ArrayList<Byte> result = new ArrayList<Byte>();
+		ArrayList<Byte> result = new ArrayList<>();
 		int byteCounter = 0;
 		try {
 			do {

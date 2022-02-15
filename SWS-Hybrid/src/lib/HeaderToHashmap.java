@@ -7,7 +7,7 @@ public class HeaderToHashmap {
 	 * Reads the HTTP request, then makes a hashmap to store headers n' stuff.
 	 */
 	public static HashMap<String, String> convert(String req) {
-		HashMap<String, String> data = new HashMap<String, String>();
+		HashMap<String, String> data = new HashMap<>();
 		String[] lines = req.split("\r\n");
 		String[] fir_data = lines[0].split(" ");
 		data.put("method", fir_data[0]);

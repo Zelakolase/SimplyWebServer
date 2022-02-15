@@ -10,8 +10,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class SparkDB {
-	public HashMap<String, ArrayList<String>> Mapper = new HashMap<String, ArrayList<String>>();
-	public ArrayList<String> Headers = new ArrayList<String>();
+	public HashMap<String, ArrayList<String>> Mapper = new HashMap<>();
+	public ArrayList<String> Headers = new ArrayList<>();
 	public int num_queries = 0;
 	public int num_header = 0;
 
@@ -133,14 +133,14 @@ public class SparkDB {
 	 * Get item by index
 	 */
 	public String getbyindex(int index) {
-		String out = "";
+		StringBuilder out = new StringBuilder();
 		for (int i = 0; i < num_header; i++) {
 			String temp = Headers.get(i);
-			out += Mapper.get(temp).get(index);
+			out.append(Mapper.get(temp).get(index));
 			if (i + 1 < num_header)
-				out += ",";
+				out.append(",");
 		}
-		return out;
+		return out.toString();
 	}
 
 	/*
@@ -161,26 +161,26 @@ public class SparkDB {
 	 * Print the DB
 	 */
 	public String print() {
-		String out = "";
+		StringBuilder out = new StringBuilder();
 		// Print Headers
 		for (int i = 0; i < num_header; i++) {
-			out += "\"" + Headers.get(i) + "\"";
+			out.append("\"").append(Headers.get(i)).append("\"");
 			if (!((i + 1) == num_header)) {
-				out += ",";
+				out.append(",");
 			}
 		}
-		out += "\n";
+		out.append("\n");
 		// Print Data
 		for (int i = 0; i < num_queries; i++) {
 			for (int x = 0; x < num_header; x++) {
-				out += "\"" + Mapper.get(Headers.get(x)).get(i) + "\"";
+				out.append("\"").append(Mapper.get(Headers.get(x)).get(i)).append("\"");
 				if (!((x + 1) == num_header)) {
-					out += ",";
+					out.append(",");
 				}
 			}
-			out += "\n";
+			out.append("\n");
 		}
-		return out;
+		return out.toString();
 	}
 
 	/*
@@ -204,7 +204,7 @@ public class SparkDB {
 	void zero() {
 		num_queries = 0;
 		num_header = 0;
-		Mapper = new HashMap<String, ArrayList<String>>();
-		Headers = new ArrayList<String>();
+		Mapper = new HashMap<>();
+		Headers = new ArrayList<>();
 	}
 }

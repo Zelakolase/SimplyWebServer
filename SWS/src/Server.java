@@ -13,7 +13,13 @@ import java.util.List;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 
-import lib.*;
+import lib.ArraySplit;
+import lib.HTTPCode;
+import lib.HeaderToHashmap;
+import lib.IO;
+import lib.Network;
+import lib.SparkDB;
+import lib.log;
 
 public abstract class Server {
 	boolean dynamic = true; // Dynamic mode?
@@ -166,6 +172,7 @@ public abstract class Server {
 			S = in;
 		}
 
+		@Override
 		public void run() {
 			try {
 				DataInputStream DIS = new DataInputStream(S.getInputStream());
@@ -198,7 +205,7 @@ public abstract class Server {
 																											// last item
 					Network.write(DOS, IO.read(path), ContentType, HTTPCode.OK, GZip, AddedResponseHeaders);
 				} else {
-					HashMap<String, byte[]> Reply = new HashMap<String, byte[]>();
+					HashMap<String, byte[]> Reply = new HashMap<>();
 					/*
 					 * Dynamic Mode
 					 */
@@ -206,7 +213,7 @@ public abstract class Server {
 					 * multipart-formdata processing for TLS records limitation. Require mandatory
 					 * read as s.available() is lying and oracle devs are lazy to fix it.
 					 */
-					ArrayList<Byte> multipart = new ArrayList<Byte>();
+					ArrayList<Byte> multipart = new ArrayList<>();
 					if (headerPost.size() > 2) { // multipart-formdata is potentially detected
 						for (int i = 0; i < headerPost.get(2).length; i++) {
 							multipart.add(headerPost.get(2)[i]);
@@ -224,8 +231,8 @@ public abstract class Server {
 									Integer.valueOf(HeaderToHashmap.convert(headers).get("Content-Length"))
 											- (headerPost.get(1).length + headerPost.get(2).length + 4)); // Read n
 																											// bytes
-							for (int i = 0; i < add.length; i++) {
-								multipart.add(add[i]);
+							for (byte element : add) {
+								multipart.add(element);
 							}
 						}
 						Reply = main(headers, headerPost.get(1), toPrimitives(multipart.toArray(Byte[]::new)));
@@ -235,10 +242,8 @@ public abstract class Server {
 						Reply = main(headers, null, null);
 					}
 					// [content = hi , mime = text/html , code = HTTPCode.OK]
-					Network.write(DOS, Reply.get("content"),
-							new String(Reply.get("mime")),
-							new String(Reply.get("code")),
-							GZip, AddedResponseHeaders);
+					Network.write(DOS, Reply.get("content"), new String(Reply.get("mime")),
+							new String(Reply.get("code")), GZip, AddedResponseHeaders);
 				}
 				DIS.close();
 				DOS.close();

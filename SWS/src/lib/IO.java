@@ -7,7 +7,7 @@ import java.nio.file.StandardOpenOption;
 public class IO {
 	/**
 	 * Reads file as byte array
-	 * 
+	 *
 	 * @param filename the name of the dest. file
 	 * @return file content in bytes
 	 */
@@ -22,7 +22,7 @@ public class IO {
 
 	/**
 	 * Writes on file
-	 * 
+	 *
 	 * @param filename the name of the dest. file
 	 * @param content  the content to write in String
 	 * @param append   weather to append to existing value or not
@@ -43,7 +43,7 @@ public class IO {
 
 	/**
 	 * Writes on file
-	 * 
+	 *
 	 * @param filename the name of the dest. file
 	 * @param content  the content to write in bytes
 	 * @param append   weather to append to existing value or not

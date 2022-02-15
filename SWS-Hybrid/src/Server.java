@@ -15,7 +15,13 @@ import java.util.List;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 
-import lib.*;
+import lib.ArraySplit;
+import lib.HTTPCode;
+import lib.HeaderToHashmap;
+import lib.IO;
+import lib.Network;
+import lib.SparkDB;
+import lib.log;
 
 public abstract class Server {
 	static boolean dynamic = true; // Dynamic mode?
@@ -30,59 +36,65 @@ public abstract class Server {
 	static String commandFire = "java app %request%";
 	static SparkDB MIME = new SparkDB();
 	static String AddedResponseHeaders = ""; // Custom Response headers
-	static boolean is_linux = ! System.getProperty("os.name").contains("win");
+	static boolean is_linux = !System.getProperty("os.name").contains("win");
 	static ProcessBuilder PB = new ProcessBuilder();
+
 	public static void main(String[] args) {
-		HashMap<String, String> arguments = new HashMap<String, String>();
-		if(args[0].equals("--help")) {
+		HashMap<String, String> arguments = new HashMap<>();
+		if (args[0].equals("--help")) {
 			System.out.println("--port [num] - Specify port. MANDATORY\n"
 					+ "--proto [http/https]- Specify protocol. MANDATORY\n"
 					+ "--max-concurrent-requests [num] - Max requests to process at a time. MANDATORY\n"
 					+ "--backlog [num] - Max requests to wait for processing. MANDATORY\n"
 					+ "--mime-file [path] - mime db. default: MIME.dat\n"
-					+ "--www-dir [path] - www index directory. default: www\n"
-					+ "--gzip [1/0] - GZip. MANDATORY\n"
+					+ "--www-dir [path] - www index directory. default: www\n" + "--gzip [1/0] - GZip. MANDATORY\n"
 					+ "--dynamic [1/0] - dynamic/static. MANDATORY\n"
 					+ "--tls-version [SSL/SSLv2/SSLv3/TLS/TLSv1/TLSv1.1/TLSv1.2/TLSv1.3/DTLS/DTLSv1.0/DTLSv1.2] - SSL/TLS Version\n"
 					+ "--keystore-path [path]. MANDATORY IF PROTO IS HTTPS\n"
 					+ "--keystore-pass [password]. MANDATORY IF PROTO IS HTTPS\n"
 					+ "--keystore-type [JKS/JCEKS/DKS/PKCS11/PKCS12]. TLS VERSION IS MANDATORY"
 					+ "--keymanager-type [type]. TLS VERSION AND KEYSTORE TYPE IS MANDATORY\n"
-					+ "--app-command [cmd %request%]. MANDATORY\n"
-					+ "--max-req-size [num in kb]. MANDATORY");
-		}else {
-			for(int i = 0;i<args.length;i+=2) {
-				arguments.put(args[i], args[i+1]);
+					+ "--app-command [cmd %request%]. MANDATORY\n" + "--max-req-size [num in kb]. MANDATORY");
+		} else {
+			for (int i = 0; i < args.length; i += 2) {
+				arguments.put(args[i], args[i + 1]);
 			}
 			port = Integer.parseInt(arguments.get("--port"));
 			MaxConcurrentRequests = Integer.parseInt(arguments.get("--max-concurrent-requests"));
 			backlog = Integer.parseInt(arguments.get("--backlog"));
-			if(arguments.get("--gzip").equals("1")) GZip = true;
-			if(arguments.get("--dynamic").equals("0")) dynamic = false;
+			if (arguments.get("--gzip").equals("1"))
+				GZip = true;
+			if (arguments.get("--dynamic").equals("0"))
+				dynamic = false;
 			commandFire = arguments.get("--app-command");
 			MAX_REQ_SIZE = Integer.parseInt(arguments.get("--max-req-size"));
-			if(arguments.containsKey("--mime-file")) MIMEFile = arguments.get("--mime-file");
-			if(arguments.containsKey("--www-dir")) WWWDir = arguments.get("--www-dir");
-			if(arguments.get("--proto").equals("http")) {
+			if (arguments.containsKey("--mime-file"))
+				MIMEFile = arguments.get("--mime-file");
+			if (arguments.containsKey("--www-dir"))
+				WWWDir = arguments.get("--www-dir");
+			if (arguments.get("--proto").equals("http")) {
 				// http
 				HTTPStart(port);
-			}else {
+			} else {
 				// https
 				String KeyStorePath = arguments.get("--keystore-path");
 				String KeyStorePass = arguments.get("--keystore-pass");
-				if(arguments.containsKey("--keymanager-type")) {
-					HTTPSStart(port,KeyStorePath,KeyStorePass, arguments.get("--tls-version"),arguments.get("--keystore-type"),arguments.get("--keymanager-type"));
-				}else if(arguments.containsKey("--keystore-type")) {
-					HTTPSStart(port,KeyStorePath,KeyStorePass, arguments.get("--tls-version"),arguments.get("--keystore-type"));
-				}else if(arguments.containsKey("--tls-version")) {
-					HTTPSStart(port,KeyStorePath,KeyStorePass, arguments.get("--tls-version"));
-				}else {
-					HTTPSStart(port,KeyStorePath,KeyStorePass);
+				if (arguments.containsKey("--keymanager-type")) {
+					HTTPSStart(port, KeyStorePath, KeyStorePass, arguments.get("--tls-version"),
+							arguments.get("--keystore-type"), arguments.get("--keymanager-type"));
+				} else if (arguments.containsKey("--keystore-type")) {
+					HTTPSStart(port, KeyStorePath, KeyStorePass, arguments.get("--tls-version"),
+							arguments.get("--keystore-type"));
+				} else if (arguments.containsKey("--tls-version")) {
+					HTTPSStart(port, KeyStorePath, KeyStorePass, arguments.get("--tls-version"));
+				} else {
+					HTTPSStart(port, KeyStorePath, KeyStorePass);
 				}
 			}
-			
+
 		}
-	} 
+	}
+
 	public void setMaximumConcurrentRequests(int in) {
 		MaxConcurrentRequests = in;
 	}
@@ -189,8 +201,8 @@ public abstract class Server {
 		}
 	}
 
-	private static SSLContext getSSLContext(Path keyStorePath, char[] keyStorePass, String TLSVersion, String KeyStoreType,
-			String KeyManagerFactoryType) {
+	private static SSLContext getSSLContext(Path keyStorePath, char[] keyStorePass, String TLSVersion,
+			String KeyStoreType, String KeyManagerFactoryType) {
 		try {
 			var keyStore = KeyStore.getInstance(KeyStoreType);
 			keyStore.load(new FileInputStream(keyStorePath.toFile()), keyStorePass);
@@ -221,6 +233,7 @@ public abstract class Server {
 			S = in;
 		}
 
+		@Override
 		public void run() {
 			try {
 				DataInputStream DIS = new DataInputStream(S.getInputStream());
@@ -253,7 +266,7 @@ public abstract class Server {
 																											// last item
 					Network.write(DOS, IO.read(path), ContentType, HTTPCode.OK, GZip, AddedResponseHeaders);
 				} else {
-					HashMap<String, byte[]> Reply = new HashMap<String, byte[]>();
+					HashMap<String, byte[]> Reply = new HashMap<>();
 					/*
 					 * Dynamic Mode
 					 */
@@ -261,7 +274,7 @@ public abstract class Server {
 					 * multipart-formdata processing for TLS records limitation. Require mandatory
 					 * read as s.available() is lying and oracle devs are lazy to fix it.
 					 */
-					ArrayList<Byte> multipart = new ArrayList<Byte>();
+					ArrayList<Byte> multipart = new ArrayList<>();
 					if (headerPost.size() > 2) { // multipart-formdata is potentially detected
 						for (int i = 0; i < headerPost.get(2).length; i++) {
 							multipart.add(headerPost.get(2)[i]);
@@ -279,8 +292,8 @@ public abstract class Server {
 									Integer.valueOf(HeaderToHashmap.convert(headers).get("Content-Length"))
 											- (headerPost.get(1).length + headerPost.get(2).length + 4)); // Read n
 																											// bytes
-							for (int i = 0; i < add.length; i++) {
-								multipart.add(add[i]);
+							for (byte element : add) {
+								multipart.add(element);
 							}
 						}
 						Reply = main(headers, headerPost.get(1), toPrimitives(multipart.toArray(Byte[]::new)));
@@ -290,10 +303,8 @@ public abstract class Server {
 						Reply = main(headers, null, null);
 					}
 					// [content = hi , mime = text/html , code = HTTPCode.OK]
-					Network.write(DOS, Reply.get("content"),
-							new String(Reply.get("mime")),
-							new String(Reply.get("code")),
-							GZip, AddedResponseHeaders);
+					Network.write(DOS, Reply.get("content"), new String(Reply.get("mime")),
+							new String(Reply.get("code")), GZip, AddedResponseHeaders);
 				}
 				DIS.close();
 				DOS.close();
@@ -305,84 +316,87 @@ public abstract class Server {
 	}
 
 	public static HashMap<String, byte[]> main(String req, byte[] body, byte[] additional) {
-		String to_stdin = "";
+		StringBuilder to_stdin = new StringBuilder();
 		/*
-		 * Performance Improvement 11Feb. 2022.
-		 * A latency decrease up to 35%
+		 * Performance Improvement 11Feb. 2022. A latency decrease up to 35%
 		 */
 		byte[] req_bytes = req.getBytes();
-		for(int i = 0;i < req_bytes.length; i++) {
-			to_stdin += String.valueOf(req_bytes[i])+";";
+		for (byte req_byte : req_bytes) {
+			to_stdin.append(req_byte).append(";");
 		}
-		if(body.length > 0) {
-		for(int i = 0;i < body.length; i++) {
-			to_stdin += String.valueOf(body[i])+";";
-		}
-		if(additional.length > 0) {
-			for(int i = 0;i < additional.length; i++) {
-				String delimiter = ";";
-				if(i+1 == additional.length) delimiter = "";
-				to_stdin += String.valueOf(additional[i])+delimiter;
+		if (body.length > 0) {
+			for (byte element : body) {
+				to_stdin.append(element).append(";");
+			}
+			if (additional.length > 0) {
+				for (int i = 0; i < additional.length; i++) {
+					String delimiter = ";";
+					if (i + 1 == additional.length)
+						delimiter = "";
+					to_stdin.append(additional[i]).append(delimiter);
+				}
+			} else {
+				to_stdin.append(";");
 			}
 		} else {
-			to_stdin += ";";
+			to_stdin.append(";");
 		}
-		}else {
-			to_stdin += ";";
-		}
-		String[] reply = split(cmd(commandFire.replace("%request%", "<<< "+"'"+to_stdin+"'")),','); // response, code, mime
+		String[] reply = split(cmd(commandFire.replace("%request%", "<<< " + "'" + to_stdin.append("'").toString())),
+				','); // response, code, mime
 		/**
 		 * Response "45;115" to byte arr {45,115}
 		 */
-		String[] bytes = split(reply[0],';'); // semicolon delimiter
+		String[] bytes = split(reply[0], ';'); // semicolon delimiter
 		byte[] response = new byte[bytes.length];
-		for(int i = 0;i<bytes.length;i++) {
+		for (int i = 0; i < bytes.length; i++) {
 			response[i] = Byte.parseByte(bytes[i]);
 		}
-		return new HashMap<String, byte[]>() {{
-			put("content",response);
-			put("mime",reply[2].getBytes());
-			put("code",reply[1].getBytes());
-		}};
-		
+		return new HashMap<>() {
+			{
+				put("content", response);
+				put("mime", reply[2].getBytes());
+				put("code", reply[1].getBytes());
+			}
+		};
+
 	}
-	public static String[] split(final String line, final char delimiter)
-	{
-	    CharSequence[] temp = new CharSequence[(line.length() / 2) + 1];
-	    int wordCount = 0;
-	    int i = 0;
-	    int j = line.indexOf(delimiter, 0); // first substring
 
-	    while (j >= 0)
-	    {
-	        temp[wordCount++] = line.substring(i, j);
-	        i = j + 1;
-	        j = line.indexOf(delimiter, i); // rest of substrings
-	    }
+	public static String[] split(final String line, final char delimiter) {
+		CharSequence[] temp = new CharSequence[(line.length() / 2) + 1];
+		int wordCount = 0;
+		int i = 0;
+		int j = line.indexOf(delimiter, 0); // first substring
 
-	    temp[wordCount++] = line.substring(i); // last substring
+		while (j >= 0) {
+			temp[wordCount++] = line.substring(i, j);
+			i = j + 1;
+			j = line.indexOf(delimiter, i); // rest of substrings
+		}
 
-	    String[] result = new String[wordCount];
-	    System.arraycopy(temp, 0, result, 0, wordCount);
+		temp[wordCount++] = line.substring(i); // last substring
 
-	    return result;
+		String[] result = new String[wordCount];
+		System.arraycopy(temp, 0, result, 0, wordCount);
+
+		return result;
 	}
+
 	public static String cmd(String s) {
-    	String out = "";
-    	try {
-    		Process pr;
-        	if (is_linux) {
-        		pr = PB.command("bash","-c",s).start();
-        	}else {
-        		pr = PB.command("cmd.exe","/C",s).start();
-        	}
-        	pr.waitFor();
-        	BufferedReader buf = new BufferedReader(new InputStreamReader(pr.getInputStream()));
-        	out = buf.readLine();
-    	}catch(Exception e) {
-    		e.printStackTrace();
-    		// Shhh. be silent
-    	}
-    	return out;
-    }
+		String out = "";
+		try {
+			Process pr;
+			if (is_linux) {
+				pr = PB.command("bash", "-c", s).start();
+			} else {
+				pr = PB.command("cmd.exe", "/C", s).start();
+			}
+			pr.waitFor();
+			BufferedReader buf = new BufferedReader(new InputStreamReader(pr.getInputStream()));
+			out = buf.readLine();
+		} catch (Exception e) {
+			e.printStackTrace();
+			// Shhh. be silent
+		}
+		return out;
+	}
 }
