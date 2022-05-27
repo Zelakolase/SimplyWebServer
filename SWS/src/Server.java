@@ -204,6 +204,7 @@ public abstract class Server {
 																											// it's the
 																											// last item
 					Network.write(DOS, IO.read(path), ContentType, HTTPCode.OK, GZip, AddedResponseHeaders);
+					CurrentConcurrentRequests--;
 				} else {
 					HashMap<String, byte[]> Reply = new HashMap<>();
 					/*
@@ -244,6 +245,7 @@ public abstract class Server {
 					// [content = hi , mime = text/html , code = HTTPCode.OK]
 					Network.write(DOS, Reply.get("content"), new String(Reply.get("mime")),
 							new String(Reply.get("code")), GZip, AddedResponseHeaders);
+					CurrentConcurrentRequests--;
 				}
 				DIS.close();
 				DOS.close();
