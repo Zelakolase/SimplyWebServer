@@ -7,7 +7,7 @@ public class HTTPTest extends Server {
 	public static void main(String[] args) {
 		HTTPTest HTTPServer = new HTTPTest();
 		HTTPServer.setDynamic(false); // static
-		HTTPServer.HTTPStart(80);
+		HTTPServer.HTTPStart(8080);
 	}
 
 	@Override
