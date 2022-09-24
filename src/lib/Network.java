@@ -1,10 +1,11 @@
 package lib;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
+
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.zip.GZIPOutputStream;
 
 public class Network {
@@ -27,69 +28,72 @@ public class Network {
 	/**
 	 * HTTP Write Response Function
 	 *
-	 * @param DOS                  data stream to write to
+	 * @param dOS                  data stream to write to
 	 * @param ResponseData         the body of the http response
-	 * @param ContentType          the content type of the body
-	 * @param ResponseCode         the response code (obv.)
+	 * @param bs          the content type of the body
+	 * @param bs2         the response code (obv.)
 	 * @param GZip                 weather to use GZip or not
-	 * @param AddedResponseHeaders additional response headers to add like
+	 * @param customHeaders additional response headers to add like
 	 *                             'X-XSS-Protection'
 	 */
-	public static void write(DataOutputStream DOS, byte[] ResponseData, String ContentType, String ResponseCode,
-			boolean GZip, String AddedResponseHeaders) {
+	public static void write(BufferedOutputStream dOS, byte[] ResponseData, byte[] bs, byte[] bs2,
+			boolean GZip, HashMap<String, String> customHeaders) {
 		try {
 			if (GZip)
 				ResponseData = compress(ResponseData);
-			DOS.write((ResponseCode + "\r\n").getBytes());
-			DOS.write("Server: SWS 1.0\r\n".getBytes());
-			DOS.write((AddedResponseHeaders).getBytes());
-			DOS.write(("Connection: Keep-Alive\r\n").getBytes());
-			if (GZip)
-				DOS.write("Content-Encoding: gzip\r\n".getBytes());
-			if (ContentType.equals("text/html")) {
-				DOS.write(("Content-Type: " + ContentType + ";charset=UTF-8\r\n").getBytes());
-			} else {
-				DOS.write(("Content-Type: " + ContentType + "\r\n").getBytes());
+			dOS.write((new String(bs2) + "\r\n").getBytes());
+			dOS.write("Server: SWS 2.0\r\n".getBytes());
+			for(java.util.Map.Entry<String, String> e : customHeaders.entrySet()) {
+				dOS.write((e.getKey()+": "+e.getValue()).getBytes());
 			}
-			DOS.write(("Content-Length: " + ResponseData.length + "\r\n\r\n").getBytes());
-			DOS.write(ResponseData);
-			DOS.flush();
-			DOS.close();
+			dOS.write(("Connection: Keep-Alive\r\n").getBytes());
+			if (GZip)
+				dOS.write("Content-Encoding: gzip\r\n".getBytes());
+			String bss = new String(bs);
+			if (bss.equals("text/html")) {
+				dOS.write(("Content-Type: " + bss + ";charset=UTF-8\r\n").getBytes());
+			} else {
+				dOS.write(("Content-Type: " + bss + "\r\n").getBytes());
+			}
+			dOS.write(("Content-Length: " + ResponseData.length + "\r\n\r\n").getBytes());
+			dOS.write(ResponseData);
+			dOS.flush();
+			dOS.close();
 		} catch (Exception e) {
 			log.e(e, Network.class.getName(), "write");
 		}
 	}
 
-	/**
+		/**
 	 * Reads from socket into ArrayList
 	 *
 	 * @param MAX_REQ_SIZE the maximum kbytes to read
 	 */
-	public static ArrayList<Byte> read(DataInputStream DIS, int MAX_REQ_SIZE) {
-		ArrayList<Byte> result = new ArrayList<>();
-		int byteCounter = 0;
+	public static ByteArrayOutputStream read(BufferedInputStream dIS, int MAX_REQ_SIZE) {
+		MAX_REQ_SIZE = MAX_REQ_SIZE * 1000;
+		ByteArrayOutputStream Reply = new ByteArrayOutputStream(1024);
+		int counter = 0;
 		try {
-			do {
-				if (byteCounter < MAX_REQ_SIZE * 1000) {
-					result.add(DIS.readNBytes(1)[0]);
-					byteCounter++;
+			ReadLoop: do {
+				if (counter < MAX_REQ_SIZE) {
+					Reply.write(dIS.readNBytes(1));
+					counter++;
+				} else {
+					break ReadLoop;
 				}
-			} while (DIS.available() > 0);
-
-		} catch (IOException e) {
-			log.e(e, Network.class.getName(), "read");
+			} while (dIS.available() > 0);
+		} catch (Exception e) {
 		}
-		return result;
+		return Reply;
 	}
 
 	/**
 	 * Mandatory Read (used rarely)
 	 */
-	public static byte[] ManRead(DataInputStream DIS, int bytestoread) {
+	public static byte[] ManRead(BufferedInputStream dIS, int bytestoread) {
 		try {
-			return DIS.readNBytes(bytestoread);
-		} catch (IOException e) {
-			log.e(e, Network.class.getName(), "ManRead");
+			return dIS.readNBytes(bytestoread);
+		} catch (Exception e) {
 		}
 		return null;
 	}

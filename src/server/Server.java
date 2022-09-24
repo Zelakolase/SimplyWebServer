@@ -1,5 +1,5 @@
 package server;
-import java.io.FileInputStream;
+import java.io.*;
 import java.net.*;
 import java.nio.file.Path;
 import java.security.*;
@@ -17,17 +17,10 @@ public abstract class Server {
 	private boolean GZip = true;
 	private int MaxRequestSizeKB = 100_000;
 	private int backlog = MaxConcurrentRequests * 5;
-	private String MIMEFile = "MIME.db";
+	private String MIMEFile = "../etc/MIME.db";
 	private String WWWDir = "www";
 	private SparkDB MIME = new SparkDB();
     HashMap<String, String> CustomHeaders = new HashMap<>();
-    public Server() {
-        try {
-            MIME.readFromFile(MIMEFile);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
     public void setMaximumConcurrentRequests(int in) {
 		MaxConcurrentRequests = in;
 	}
@@ -48,8 +41,9 @@ public abstract class Server {
 		backlog = in;
 	}
 
-	public void setMIMEFile(String in) {
+	public void setMIMEFile(String in) throws Exception {
 		MIMEFile = in;
+		loadMIME();
 	}
 
 	public void setWWWDirectory(String in) {
@@ -61,8 +55,10 @@ public abstract class Server {
     }
 
     public void HTTPStart() throws Exception {
+		loadMIME();
         ExecutorService executor = Executors.newFixedThreadPool(MaxConcurrentRequests);
         try (ServerSocket SS = new ServerSocket(Port, backlog)) {
+			log.s("Server running at :"+Port);
             while (true) {
                 /*
                  * Max 10 retries (1ms delay between each) for every request to process if
@@ -92,6 +88,9 @@ public abstract class Server {
             executor.shutdownNow();
         }
     }
+	private void loadMIME() throws Exception {
+		if(!Dynamic) MIME.readFromFile(MIMEFile);
+	}
 
     public void HTTPSStart(int port, String KeyStorePath, String KeyStorePassword) throws Exception{
 		HTTPSStart(port, KeyStorePath, KeyStorePassword, "TLSv1.3", "JKS", "SunX509");
@@ -108,6 +107,7 @@ public abstract class Server {
 
 	public void HTTPSStart(int port, String KeyStorePath, String KeyStorePassword, String TLSVersion,
 			String KeyStoreType, String KeyManagerFactoryType) throws Exception{
+				loadMIME();
                 ExecutorService executor = Executors.newFixedThreadPool(MaxConcurrentRequests);
 			char[] keyStorePassword = KeyStorePassword.toCharArray();
 			ServerSocket SS = getSSLContext(Path.of(KeyStorePath), keyStorePassword, TLSVersion, KeyStoreType,
@@ -152,8 +152,37 @@ public abstract class Server {
 
         @Override
         public void run() {
-            
+			BufferedInputStream DIS = null;
+			BufferedOutputStream DOS = null;
+			try {
+            	DIS = new BufferedInputStream(s.getInputStream(),65536);
+				DOS = new BufferedOutputStream(s.getOutputStream(),65536);
+				byte[] Request = Network.read(DIS, MaxRequestSizeKB).toByteArray();
+				List<byte[]> ALm = ArraySplit.split(Request, new byte[] { 13, 10, 13, 10 });
+				if(Dynamic) {
+					HashMap<String, byte[]> response = main(PostRequestMerge.merge(ALm, DIS, HeaderToHashmap.convert(new String(ALm.get(0))), MaxRequestSizeKB));
+					Network.write(DOS, response.get("body"), response.get("mime"), response.get("code"), GZip, CustomHeaders);
+				}else {
+					// Static
+					String headers = new String(ALm.get(0));
+					String path = "./" + WWWDir + PathFilter.filter(HeaderToHashmap.convert(headers).get("path"));
+					String[] pathSplit = path.split("\\.");
+					String ContentType = MIME.get(new HashMap<>() {{
+						put("extenstion", pathSplit[pathSplit.length - 1]);
+					}}, "mime", 1).get(0);
+					Network.write(DOS, IO.read(path), ContentType.getBytes(), HTTPCode.OK.getBytes(), GZip, CustomHeaders);
+				}
+			}catch(Exception e) {
+				Network.write(DOS, getStackTrace(e).getBytes(), "text/html".getBytes(), HTTPCode.INTERNAL_SERVER_ERROR.getBytes(), GZip, CustomHeaders);
+			}
         }
     }
+	private static String getStackTrace(final Throwable throwable) {
+		final StringWriter sw = new StringWriter();
+		final PrintWriter pw = new PrintWriter(sw, true);
+		throwable.printStackTrace(pw);
+		return sw.getBuffer().toString();
+   }
+	// Keys: body, mime, code
 	public abstract HashMap<String, byte[]> main(byte[] request);
 }

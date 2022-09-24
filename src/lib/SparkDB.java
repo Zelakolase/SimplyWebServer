@@ -70,8 +70,7 @@ public class SparkDB {
      * @see #readFromString(String)
      */
     public void readFromFile(String filename) throws Exception {
-        BufferedInputStream BIF = new BufferedInputStream(new FileInputStream(new File(filename)), 4096);
-        readFromString(new String(BIF.readAllBytes()));
+        readFromString(new String(IO.read(filename)));
     }
 
     /**
