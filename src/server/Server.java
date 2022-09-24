@@ -107,6 +107,8 @@ public abstract class Server {
 
 	public void HTTPSStart(int port, String KeyStorePath, String KeyStorePassword, String TLSVersion,
 			String KeyStoreType, String KeyManagerFactoryType) throws Exception{
+				System.setProperty("jdk.tls.ephemeralDHKeySize", "2048"); // Mitigation against LOGJAM TLS Attack
+				System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true"); // Mitigation against Client Renegotiation Attack
 				loadMIME();
                 ExecutorService executor = Executors.newFixedThreadPool(MaxConcurrentRequests);
 			char[] keyStorePassword = KeyStorePassword.toCharArray();
