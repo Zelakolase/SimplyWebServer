@@ -41,21 +41,35 @@ public class Network {
 		try {
 			if (GZip)
 				ResponseData = compress(ResponseData);
-			dOS.write((new String(bs2) + "\r\n").getBytes());
+			StringBuilder temp = new StringBuilder((new String(bs2)));
+			temp.append("\r\n");
+			dOS.write(temp.toString().getBytes());
 			dOS.write("Server: SWS 2.0\r\n".getBytes());
 			for(java.util.Map.Entry<String, String> e : customHeaders.entrySet()) {
-				dOS.write((e.getKey()+": "+e.getValue()).getBytes());
+				temp.setLength(0);
+				temp.append(e.getKey());
+				temp.append(": ");
+				temp.append(e.getValue());
+				dOS.write(temp.toString().getBytes());
 			}
+			temp.setLength(0);
 			dOS.write(("Connection: Keep-Alive\r\n").getBytes());
 			if (GZip)
 				dOS.write("Content-Encoding: gzip\r\n".getBytes());
 			String bss = new String(bs);
+			temp.append("Content-Type: ");
+			temp.append(bss);
 			if (bss.equals("text/html")) {
-				dOS.write(("Content-Type: " + bss + ";charset=UTF-8\r\n").getBytes());
+				temp.append(";charset=UTF-8\r\n");
 			} else {
-				dOS.write(("Content-Type: " + bss + "\r\n").getBytes());
+				temp.append("\r\n");
 			}
-			dOS.write(("Content-Length: " + ResponseData.length + "\r\n\r\n").getBytes());
+			dOS.write(temp.toString().getBytes());
+			temp.setLength(0);
+			temp.append("Content-Length: ");
+			temp.append(ResponseData.length);
+			temp.append("\r\n\r\n");
+			dOS.write(temp.toString().getBytes());
 			dOS.write(ResponseData);
 			dOS.flush();
 			dOS.close();

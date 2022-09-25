@@ -4,6 +4,7 @@ import java.net.*;
 import java.nio.file.Path;
 import java.security.*;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.concurrent.*;
 
 import javax.net.ssl.*;
@@ -20,7 +21,8 @@ public abstract class Server {
 	private String MIMEFile = "../etc/MIME.db";
 	private String WWWDir = "www";
 	private SparkDB MIME = new SparkDB();
-    HashMap<String, String> CustomHeaders = new HashMap<>();
+	private int MaxTries = 11;
+    private HashMap<String, String> CustomHeaders = new HashMap<>();
     public void setMaximumConcurrentRequests(int in) {
 		MaxConcurrentRequests = in;
 	}
@@ -50,9 +52,17 @@ public abstract class Server {
 		WWWDir = in;
 	}
     
-    public void setHTTPPort(int in) {
+    public void setPort(int in) {
         Port = in;
     }
+
+	public void addCustomHeader(Entry<String, String> in){
+		CustomHeaders.put(in.getKey(), in.getValue());
+	}
+
+	public void setMaximumSocketTries(int in) {
+		MaxTries = in + 1;
+	}
 
     public void HTTPStart() throws Exception {
 		loadMIME();
@@ -61,11 +71,11 @@ public abstract class Server {
 			log.s("Server running at :"+Port);
             while (true) {
                 /*
-                 * Max 10 retries (1ms delay between each) for every request to process if
+                 * Max x retries (1ms delay between each) for every request to process if
                  * MaxConcurrentRequests is reached
                  */
                 int tries = 0; // current tries
-                inner: while (tries < 11) {
+                inner: while (tries < MaxTries) {
                     if (tries > 0)
                         Thread.sleep(1);
                     if (CurrentConcurrentRequests <= MaxConcurrentRequests) {
@@ -92,40 +102,45 @@ public abstract class Server {
 		if(!Dynamic) MIME.readFromFile(MIMEFile);
 	}
 
-    public void HTTPSStart(int port, String KeyStorePath, String KeyStorePassword) throws Exception{
-		HTTPSStart(port, KeyStorePath, KeyStorePassword, "TLSv1.3", "JKS", "SunX509");
+    public void HTTPSStart(String KeyStorePath, String KeyStorePassword) throws Exception{
+		HTTPSStart(KeyStorePath, KeyStorePassword, "TLSv1.3", "JKS", "SunX509");
 	}
 
-	public void HTTPSStart(int port, String KeyStorePath, String KeyStorePassword, String TLSVersion) throws Exception{
-		HTTPSStart(port, KeyStorePath, KeyStorePassword, TLSVersion, "JKS", "SunX509");
+	public void HTTPSStart(String KeyStorePath, String KeyStorePassword, String TLSVersion) throws Exception{
+		HTTPSStart(KeyStorePath, KeyStorePassword, TLSVersion, "JKS", "SunX509");
 	}
 
-	public void HTTPSStart(int port, String KeyStorePath, String KeyStorePassword, String TLSVersion,
+	public void HTTPSStart(String KeyStorePath, String KeyStorePassword, String TLSVersion,
 			String KeyStoreType) throws Exception{
-		HTTPSStart(port, KeyStorePath, KeyStorePassword, TLSVersion, KeyStoreType, "SunX509");
+		HTTPSStart(KeyStorePath, KeyStorePassword, TLSVersion, KeyStoreType, "SunX509");
 	}
 
-	public void HTTPSStart(int port, String KeyStorePath, String KeyStorePassword, String TLSVersion,
+	public void HTTPSStart(String KeyStorePath, String KeyStorePassword, String TLSVersion,
 			String KeyStoreType, String KeyManagerFactoryType) throws Exception{
 				System.setProperty("jdk.tls.ephemeralDHKeySize", "2048"); // Mitigation against LOGJAM TLS Attack
 				System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true"); // Mitigation against Client Renegotiation Attack
 				loadMIME();
                 ExecutorService executor = Executors.newFixedThreadPool(MaxConcurrentRequests);
-			char[] keyStorePassword = KeyStorePassword.toCharArray();
-			ServerSocket SS = getSSLContext(Path.of(KeyStorePath), keyStorePassword, TLSVersion, KeyStoreType,
-					KeyManagerFactoryType).getServerSocketFactory().createServerSocket(port, backlog);
-			Arrays.fill(keyStorePassword, '0');
+				char[] keyStorePassword = KeyStorePassword.toCharArray();
+				ServerSocket SS = getSSLContext(Path.of(KeyStorePath), keyStorePassword, TLSVersion, KeyStoreType,
+				KeyManagerFactoryType).getServerSocketFactory().createServerSocket(Port, backlog);
+				Arrays.fill(keyStorePassword, '0');
 			while (true) {
 				/*
-				 * Max 10 retries (1ms delay between each) for every request to process if
+				 * Max x retries (1ms delay between each) for every request to process if
 				 * MaxConcurrentReqs is reached
 				 */
 				int tries = 0; // current tries
-				inner: while (tries < 11) {
+				inner: while (tries < MaxTries) {
 					if (tries > 0)
 						Thread.sleep(1);
 					if (CurrentConcurrentRequests <= MaxConcurrentRequests) {
 						Socket S = SS.accept();
+						S.setKeepAlive(false);
+						S.setTcpNoDelay(true);
+						S.setReceiveBufferSize(65536);
+						S.setSendBufferSize(65536);
+						S.setSoTimeout(60000);
 						executor.execute(new Engine(S));
 						CurrentConcurrentRequests++;
 						break inner;
@@ -167,7 +182,9 @@ public abstract class Server {
 				}else {
 					// Static
 					String headers = new String(ALm.get(0));
-					String path = "./" + WWWDir + PathFilter.filter(HeaderToHashmap.convert(headers).get("path"));
+					StringBuilder PathBuilder = new StringBuilder();
+					PathBuilder.append("./").append(WWWDir).append(PathFilter.filter(HeaderToHashmap.convert(headers).get("path")));
+					String path = PathBuilder.toString();
 					String[] pathSplit = path.split("\\.");
 					String ContentType = MIME.get(new HashMap<>() {{
 						put("extenstion", pathSplit[pathSplit.length - 1]);

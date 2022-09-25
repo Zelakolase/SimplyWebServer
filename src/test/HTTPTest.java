@@ -4,13 +4,12 @@ import java.util.HashMap;
 
 import lib.HTTPCode;
 import lib.HeaderToHashmap;
-import lib.log;
 
 public class HTTPTest extends server.Server {
     public static void main(String[] args) throws Exception {
         HTTPTest test = new HTTPTest();
         test.setDynamic(true);
-        test.setHTTPPort(80);
+        test.setPort(80);
         test.setGZip(false);
         test.HTTPStart();
     }
