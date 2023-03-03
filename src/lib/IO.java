@@ -26,19 +26,10 @@ public class IO {
 	 * @param filename the name of the dest. file
 	 * @param content  the content to write in String
 	 * @param append   weather to append to existing value or not
+	 * @see write(String filename, byte[] content, boolean append)
 	 */
 	public static void write(String filename, String content, boolean append) {
-
-		try {
-			StandardOpenOption set = null;
-			if (append)
-				set = StandardOpenOption.APPEND;
-			if (!append)
-				set = StandardOpenOption.WRITE;
-			Files.write(Paths.get(filename), content.getBytes(), set);
-		} catch (Exception e) {
-			log.e(e, IO.class.getName(), "write");
-		}
+		write(filename, content.getBytes(), append);
 	}
 
 	/**

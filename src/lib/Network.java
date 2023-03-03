@@ -3,7 +3,7 @@ package lib;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.ByteArrayOutputStream;
-
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.zip.GZIPOutputStream;
@@ -37,10 +37,12 @@ public class Network {
 	 *                             'X-XSS-Protection'
 	 */
 	public static void write(BufferedOutputStream dOS, byte[] ResponseData, byte[] bs, byte[] bs2,
-			boolean GZip, HashMap<String, String> customHeaders) {
+			boolean GZip, HashMap<String, String> customHeaders, boolean isFile) {
 		try {
-			if (GZip)
+			if (GZip) {
+				if(isFile) ResponseData = IO.read(new String(ResponseData));
 				ResponseData = compress(ResponseData);
+			}
 			StringBuilder temp = new StringBuilder((new String(bs2)));
 			temp.append("\r\n");
 			dOS.write(temp.toString().getBytes());
@@ -53,24 +55,29 @@ public class Network {
 				dOS.write(temp.toString().getBytes());
 			}
 			temp.setLength(0);
-			dOS.write(("Connection: Keep-Alive\r\n").getBytes());
-			if (GZip)
-				dOS.write("Content-Encoding: gzip\r\n".getBytes());
+			dOS.write(("Connection: close\r\n").getBytes());
+			if (GZip) dOS.write("Content-Encoding: gzip\r\n".getBytes());
 			String bss = new String(bs);
 			temp.append("Content-Type: ");
 			temp.append(bss);
-			if (bss.equals("text/html")) {
-				temp.append(";charset=UTF-8\r\n");
-			} else {
-				temp.append("\r\n");
-			}
+			if (bss.equals("text/html")) temp.append(";charset=UTF-8\r\n");
+			else temp.append("\r\n");
 			dOS.write(temp.toString().getBytes());
 			temp.setLength(0);
-			temp.append("Content-Length: ");
-			temp.append(ResponseData.length);
+			if(!isFile) {
+				temp.append("Content-Length: ");
+				temp.append(ResponseData.length);
+			}
 			temp.append("\r\n\r\n");
 			dOS.write(temp.toString().getBytes());
-			dOS.write(ResponseData);
+			if(isFile && !GZip) {
+				FileInputStream is = new FileInputStream(new String(ResponseData));
+     			BufferedInputStream bis = new BufferedInputStream(is, 1024);
+				byte[] b;
+				while ((b = bis.readNBytes(1024)).length != 0) dOS.write(b);
+			}else {
+				dOS.write(ResponseData);
+			}
 			dOS.flush();
 			dOS.close();
 		} catch (Exception e) {
@@ -90,8 +97,8 @@ public class Network {
 		try {
 			ReadLoop: do {
 				if (counter < MAX_REQ_SIZE) {
-					Reply.write(dIS.readNBytes(1));
-					counter++;
+					Reply.write(dIS.read());
+					counter ++;
 				} else {
 					break ReadLoop;
 				}

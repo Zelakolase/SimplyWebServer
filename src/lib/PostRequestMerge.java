@@ -3,9 +3,10 @@ package lib;
 import java.io.*;
 import java.util.*;
 public class PostRequestMerge {
-	public static byte[] merge(List<byte[]> aLm, BufferedInputStream dIS, HashMap<String, String> headers, int max_bytes)
-			throws IOException {
+	public static byte[] merge(List<byte[]> aLm, BufferedInputStream dIS, HashMap<String, String> headers, int max_bytes) throws IOException {
 		ByteArrayOutputStream whole = new ByteArrayOutputStream();
+		aLm.remove(0);
+		if(aLm.size() > 0) {
         whole.write(aLm.get(0));
 		if (aLm.size() >= 2) {
 			whole.write(aLm.get(1));
@@ -27,6 +28,7 @@ public class PostRequestMerge {
 				}
 			}
 		}
+	}
 		return whole.toByteArray();
 	}
 }
