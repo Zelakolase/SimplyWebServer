@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class Server {
     private final SparkDB MIME = new SparkDB();
-    private final HashMap<String, String> CustomHeaders = new HashMap<>();
+    private HashMap<String, String> CustomHeaders = new HashMap<>();
     private int Port = 8080;
     private int MaxConcurrentRequests = 1000;
     private boolean GZip = true;
