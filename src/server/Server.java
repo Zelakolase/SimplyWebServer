@@ -18,7 +18,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 public abstract class Server {
-    private final int CurrentConcurrentRequests = 0;
     private final SparkDB MIME = new SparkDB();
     private final HashMap<String, String> CustomHeaders = new HashMap<>();
     private int Port = 8080;
@@ -28,7 +27,6 @@ public abstract class Server {
     private int backlog = MaxConcurrentRequests * 5;
     private String MIMEFile = "etc/MIME.db";
     private String WWWDir = "www";
-    private int MaxTries = 11;
     private int SOTimeout = 60_000;
     private int BufferSize = 524288;
 
@@ -78,10 +76,6 @@ public abstract class Server {
 
     public void addCustomHeader(Entry<String, String> in) {
         CustomHeaders.put(in.getKey(), in.getValue());
-    }
-
-    public void setMaximumSocketTries(int in) {
-        MaxTries = in + 1;
     }
 
     private void mainLoop(ServerSocket serverSocket, ThreadPoolExecutor poolExecutor) {
