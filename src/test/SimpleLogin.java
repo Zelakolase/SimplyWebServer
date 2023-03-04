@@ -10,11 +10,11 @@ public class SimpleLogin extends server.Server {
     public static String username = "morad";
     public static String password = "morad";
     public static void main(String[] args) throws Exception {
-        SimpleLogin SF = new SimpleLogin();
-        SF.HTTPStart(); // -> For HTTP Servers (default port: 80)
+        SimpleLogin SL = new SimpleLogin();
+        SL.HTTPStart(); // -> For HTTP Servers (default port: 80)
         /* For HTTPS Servers
-        SF.setPort(443);
-        SF.HTTPSStart("./etc/keystore.jks", "123456");
+        SL.setPort(443);
+        SL.HTTPSStart("./etc/keystore.jks", "123456");
         */ 
     }
 

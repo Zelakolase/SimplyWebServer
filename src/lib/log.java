@@ -19,7 +19,7 @@ public class log {
 	}
 
 	/**
-	 * Display success msg
+	 * Display success message
 	 *
 	 * @param in message to print
 	 */
@@ -28,7 +28,7 @@ public class log {
 	}
 
 	/**
-	 * Display informative msg
+	 * Display informative message
 	 *
 	 * @param in message to print
 	 */
@@ -37,7 +37,7 @@ public class log {
 	}
 
 	/**
-	 * Display error msg
+	 * Display error message
 	 *
 	 * @param e         the exception object to gain data from
 	 * @param className the name of the class where the error happened

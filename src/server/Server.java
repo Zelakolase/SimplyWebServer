@@ -82,8 +82,7 @@ public abstract class Server {
                  */
                 int tries = 0; // current tries
                 inner: while (tries < MaxTries) {
-                    if (tries > 0)
-                        Thread.sleep(1);
+                    if (tries > 0) Thread.sleep(1);
                     if (CurrentConcurrentRequests <= MaxConcurrentRequests) {
                         Socket S = SS.accept();
                         S.setKeepAlive(false);
@@ -94,9 +93,7 @@ public abstract class Server {
                         executor.execute(new Engine(S));
                         CurrentConcurrentRequests++;
                         break inner;
-                    } else {
-                        tries++;
-                    }
+                    } else tries++;
                 }
             }
         }
@@ -116,13 +113,11 @@ public abstract class Server {
 		HTTPSStart(KeyStorePath, KeyStorePassword, TLSVersion, "JKS", "SunX509");
 	}
 
-	public void HTTPSStart(String KeyStorePath, String KeyStorePassword, String TLSVersion,
-			String KeyStoreType) throws Exception{
+	public void HTTPSStart(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType) throws Exception{
 		HTTPSStart(KeyStorePath, KeyStorePassword, TLSVersion, KeyStoreType, "SunX509");
 	}
 
-	public void HTTPSStart(String KeyStorePath, String KeyStorePassword, String TLSVersion,
-			String KeyStoreType, String KeyManagerFactoryType) throws Exception{
+	public void HTTPSStart(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType, String KeyManagerFactoryType) throws Exception{
 				System.setProperty("jdk.tls.ephemeralDHKeySize", "2048"); // Mitigation against LOGJAM TLS Attack
 				System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true"); // Mitigation against Client Renegotiation Attack
 				loadMIME();
@@ -186,6 +181,9 @@ public abstract class Server {
 				HashMap<String, byte[]> response = main(Headers, request);
 				Network.write(DOS, response.get("body"), response.get("mime"), response.get("code"), GZip, CustomHeaders, new String(response.get("isFile")).equals("0") ? false : true);
 			}catch(Exception e) {
+				/*
+				 * If you're building a highly-secured system, it is highly recommended to change getStackTrace(e) to something else
+				 */
 				Network.write(DOS, getStackTrace(e).getBytes(), "text/html".getBytes(), HTTPCode.INTERNAL_SERVER_ERROR.getBytes(), GZip, CustomHeaders, false);
 			}
         }
@@ -211,6 +209,6 @@ public abstract class Server {
 		}};
    }
 
-	// Keys: body, mime, code
+	// Keys: body, mime, code, isFile
 	public abstract HashMap<String, byte[]> main(HashMap<String, String> headers, byte[] body);
 }

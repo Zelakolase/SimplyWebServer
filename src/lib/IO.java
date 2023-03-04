@@ -7,6 +7,7 @@ import java.nio.file.StandardOpenOption;
 public class IO {
 	/**
 	 * Reads file as byte array
+	 * Please consider OutOfMemoryException !
 	 *
 	 * @param filename the name of the dest. file
 	 * @return file content in bytes
@@ -43,10 +44,8 @@ public class IO {
 
 		try {
 			StandardOpenOption set = null;
-			if (append)
-				set = StandardOpenOption.APPEND;
-			if (!append)
-				set = StandardOpenOption.WRITE;
+			if (append) set = StandardOpenOption.APPEND;
+			else set = StandardOpenOption.WRITE;
 			Files.write(Paths.get(filename), content, set);
 		} catch (Exception e) {
 			log.e(e, IO.class.getName(), "write");

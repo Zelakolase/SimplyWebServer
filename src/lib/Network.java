@@ -36,8 +36,7 @@ public class Network {
 	 * @param customHeaders additional response headers to add like
 	 *                             'X-XSS-Protection'
 	 */
-	public static void write(BufferedOutputStream dOS, byte[] ResponseData, byte[] bs, byte[] bs2,
-			boolean GZip, HashMap<String, String> customHeaders, boolean isFile) {
+	public static void write(BufferedOutputStream dOS, byte[] ResponseData, byte[] bs, byte[] bs2, boolean GZip, HashMap<String, String> customHeaders, boolean isFile) {
 		try {
 			if (GZip) {
 				if(isFile) ResponseData = IO.read(new String(ResponseData));
@@ -46,7 +45,6 @@ public class Network {
 			StringBuilder temp = new StringBuilder((new String(bs2)));
 			temp.append("\r\n");
 			dOS.write(temp.toString().getBytes());
-			dOS.write("Server: SWS 2.0\r\n".getBytes());
 			for(java.util.Map.Entry<String, String> e : customHeaders.entrySet()) {
 				temp.setLength(0);
 				temp.append(e.getKey());
@@ -85,7 +83,7 @@ public class Network {
 		}
 	}
 
-		/**
+	/**
 	 * Reads from socket into ArrayList
 	 *
 	 * @param MAX_REQ_SIZE the maximum kbytes to read
@@ -99,9 +97,7 @@ public class Network {
 				if (counter < MAX_REQ_SIZE) {
 					Reply.write(dIS.read());
 					counter ++;
-				} else {
-					break ReadLoop;
-				}
+				} else break ReadLoop;
 			} while (dIS.available() > 0);
 		} catch (Exception e) {
 		}
