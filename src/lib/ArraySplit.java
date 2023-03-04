@@ -12,8 +12,7 @@ public class ArraySplit {
     public static List<byte[]> split(byte[] array, byte[] delimiter) {
         List<byte[]> byteArrays = new LinkedList<>();
         int begin = 0;
-        outer:
-        for (int i = 0; i < array.length - delimiter.length + 1; i++) {
+        outer: for (int i = 0; i < array.length - delimiter.length + 1; i++) {
             for (int j = 0; j < delimiter.length; j++) if (array[i + j] != delimiter[j]) continue outer;
             byteArrays.add(Arrays.copyOfRange(array, begin, i));
             begin = i + delimiter.length;
