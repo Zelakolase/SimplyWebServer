@@ -170,7 +170,7 @@ public abstract class Server {
         }};
     }
 
-    // Keys: body, mime, code, isFile
+    // Keys: body, mime, code, isFile, TODO: need CustomHeaders here.
     public abstract HashMap<String, byte[]> main(HashMap<String, String> headers, byte[] body);
 
     public class Engine implements Runnable {
