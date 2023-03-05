@@ -47,6 +47,7 @@ public abstract class Server {
 
     public void setMaximumConcurrentRequests(int in) {
         MaxConcurrentRequests = in;
+        backlog = MaxConcurrentRequests * 5;
     }
 
     public void setGZip(boolean in) {
