@@ -192,6 +192,7 @@ public abstract class Server {
                 HashMap<String, byte[]> response = main(Headers, request);
                 Network.write(DOS, response.get("body"), response.get("mime"), response.get("code"), GZip, CustomHeaders, !new String(response.get("isFile")).equals("0"));
             } catch (Exception e) {
+                // If you're building a highly-secured system, it is highly recommended to change getStackTrace(e) to something else
                 Network.write(DOS, getStackTrace(e).getBytes(), "text/html".getBytes(), HTTPCode.INTERNAL_SERVER_ERROR.getBytes(), GZip, CustomHeaders, false);
             }
         }
