@@ -1,17 +1,13 @@
 package lib;
 
 
-
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.HashMap;
+import java.util.*;
 import java.util.Map.Entry;
 
 /**
@@ -58,7 +54,7 @@ public class SparkDB {
      * @param Crypt_Key The decryption key
      */
     public void readFromFile(String filename, String Crypt_Key) throws Exception {
-        BufferedInputStream BIF = new BufferedInputStream(new FileInputStream(new File(filename)), 4096);
+        BufferedInputStream BIF = new BufferedInputStream(new FileInputStream(filename), 4096);
         readFromString(new String(AES.decrypt(BIF.readAllBytes(), Crypt_Key)));
     }
 
@@ -70,7 +66,7 @@ public class SparkDB {
      * @see #readFromString(String)
      */
     public void readFromFile(String filename) throws Exception {
-        readFromString(new String(IO.read(filename)));
+        readFromString(new String(Objects.requireNonNull(IO.read(filename))));
     }
 
     /**
@@ -86,14 +82,14 @@ public class SparkDB {
     public void readFromString(String data) throws Exception {
         zero();
         InputStream stream = new ByteArrayInputStream(data.getBytes(StandardCharsets.UTF_8));
-        boolean headerisprocessed = false;
+        boolean isHeaderProcessed = false;
         BufferedReader br = new BufferedReader(new InputStreamReader(stream));
         String line;
         String[] header = null;
         String temp_1 = "";
         String temp_0 = "";
         while ((line = br.readLine()) != null) {
-            if (!headerisprocessed) {
+            if (!isHeaderProcessed) {
                 header = line.split("\",\""); // ","
                 temp_1 = header[header.length - 1].substring(0, header[header.length - 1].length() - 1);
                 temp_0 = header[0].substring(1);
@@ -106,7 +102,7 @@ public class SparkDB {
                 Mapper.put(temp_1, new HMList());
                 Headers.add(temp_1);
                 num_header = header.length;
-                headerisprocessed = true;
+                isHeaderProcessed = true;
             } else {
                 num_queries++;
                 String[] single_col = line.split("\",\""); // ","
@@ -190,7 +186,7 @@ public class SparkDB {
      * @return The whole row in form of Key:Column name and Value:Column value
      */
     public HashMap<String, String> get(int index) {
-        return get(new ArrayList<Integer>() {
+        return get(new ArrayList<>() {
             {
                 add(index);
             }
@@ -269,7 +265,7 @@ public class SparkDB {
      * @param in Row in form of Key: Column name and Value: Column value
      */
     public void add(HashMap<String, String> in) {
-        add(new ArrayList<HashMap<String, String>>() {
+        add(new ArrayList<>() {
             {
                 add(in);
             }
@@ -395,18 +391,17 @@ public class SparkDB {
          * @param iter How many indices to grab
          * @return
          */
-		public ArrayList<Integer> multipleGet(String in, int iter) {
-			ArrayList<Integer> out = new ArrayList<>();
-			int current = 0;
-			for (int i = 0; i < this.size(); i++) {
-				if (in.equals(this.get(i)) && current <= iter)
-					{
-					out.add(i);
-					current++;
-					}
-			}
-			return out;
-		}
+        public ArrayList<Integer> multipleGet(String in, int iter) {
+            ArrayList<Integer> out = new ArrayList<>();
+            int current = 0;
+            for (int i = 0; i < this.size(); i++) {
+                if (in.equals(this.get(i)) && current <= iter) {
+                    out.add(i);
+                    current++;
+                }
+            }
+            return out;
+        }
 
         /**
          * Edits an entry based on its index value
@@ -447,7 +442,7 @@ public class SparkDB {
         private static byte[] key;
 
         public static void setKey(String myKey) throws Exception {
-            MessageDigest sha = null;
+            MessageDigest sha;
             key = myKey.getBytes(StandardCharsets.UTF_8);
             sha = MessageDigest.getInstance("SHA-256");
             key = sha.digest(key);
