@@ -13,7 +13,7 @@ public class JSON {
         String[] pairs = Q.split(","); // ["user":"x" , "pass":"y"]
         for (String pair2 : pairs) {
             String[] pair = pair2.split(":"); // "user" , "x"
-            HM.put(pair[0].replaceFirst("\"", "").substring(0, pair[0].length() - 2), pair[1].replaceFirst("\"", "").substring(0, pair[1].length() - 2));
+            HM.put(pair[0].replaceFirst("\"", "").substring(0, pair[0].length() - 2).trim(), pair[1].replaceFirst("\"", "").substring(0, pair[1].length() - 2).trim());
         }
         return HM;
     }
