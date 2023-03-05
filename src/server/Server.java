@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class Server {
     private final SparkDB MIME = new SparkDB();
-    private HashMap<String, String> CustomHeaders = new HashMap<>();
+    private final HashMap<String, String> CustomHeaders = new HashMap<>();
     private int Port = 8080;
     private int MaxConcurrentRequests = 1000;
     private boolean GZip = true;
@@ -107,7 +107,7 @@ public abstract class Server {
         loadMIME();
         final int nCores = Runtime.getRuntime().availableProcessors();
         ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(MaxConcurrentRequests);
-        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(nCores, nCores * 2, 60, TimeUnit.SECONDS, workQueue);
+        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(nCores, nCores, 60, TimeUnit.SECONDS, workQueue);
         try (ServerSocket serverSocket = new ServerSocket(Port, backlog)) {
             log.s("Server running at :" + Port);
             mainLoop(serverSocket, poolExecutor);
@@ -139,7 +139,7 @@ public abstract class Server {
         loadMIME();
         final int nCores = Runtime.getRuntime().availableProcessors();
         ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(MaxConcurrentRequests);
-        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(nCores, nCores * 2, 60, TimeUnit.SECONDS, workQueue);
+        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(nCores, nCores, 60, TimeUnit.SECONDS, workQueue);
         try (ServerSocket serverSocket = getSSLContext(Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType, KeyManagerFactoryType).getServerSocketFactory().createServerSocket(Port, backlog)) {
             log.s("Server running at :" + Port);
             mainLoop(serverSocket, poolExecutor);
@@ -182,7 +182,7 @@ public abstract class Server {
 
         @Override
         public void run() {
-            BufferedInputStream DIS = null;
+            BufferedInputStream DIS;
             BufferedOutputStream DOS = null;
             try {
                 DIS = new BufferedInputStream(s.getInputStream(), BufferSize);
