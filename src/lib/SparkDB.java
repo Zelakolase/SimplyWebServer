@@ -56,6 +56,7 @@ public class SparkDB {
     public void readFromFile(String filename, String Crypt_Key) throws Exception {
         BufferedInputStream BIF = new BufferedInputStream(new FileInputStream(filename), 4096);
         readFromString(new String(AES.decrypt(BIF.readAllBytes(), Crypt_Key)));
+        BIF.close();
     }
 
     /**
