@@ -2,7 +2,6 @@ package test;
 
 import java.util.HashMap;
 import java.util.Random;
-import java.util.TimeZone;
 
 import lib.HTTPCode;
 
