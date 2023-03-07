@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.security.KeyStore;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -93,7 +94,7 @@ public abstract class Server {
                     poolExecutor.execute(new Engine(s));
                 } catch (RejectedExecutionException ignore) {
                     log.i("concurrent connections exceed the configured maximum");
-                    Network.write(new BufferedOutputStream(s.getOutputStream()), new byte[]{}, new byte[]{}, HTTPCode.SERVICE_UNAVAILABLE.getBytes(), false, new HashMap<>(), false);
+                    Network.write(new BufferedOutputStream(s.getOutputStream()), new byte[]{}, "", HTTPCode.SERVICE_UNAVAILABLE, false, new HashMap<>(), false);
                 }
 
             } catch (IOException e) {
@@ -170,8 +171,8 @@ public abstract class Server {
         }};
     }
 
-    // Keys: body, mime, code, isFile, TODO: need CustomHeaders here.
-    public abstract HashMap<String, byte[]> main(HashMap<String, String> headers, byte[] body);
+    // Keys: byte[] body, String mime, String code, String isFile, [Optional] HashMap<String, String> CustomHeaders
+    public abstract HashMap<String, Object> main(HashMap<String, String> headers, byte[] body);
 
     public class Engine implements Runnable {
         private final Socket s;
@@ -190,11 +191,14 @@ public abstract class Server {
                 List<byte[]> ALm = ArraySplit.split(Network.read(DIS, MaxRequestSizeKB).toByteArray(), new byte[]{13, 10, 13, 10});
                 HashMap<String, String> Headers = HeaderToHashmap.convert(new String(ALm.get(0)));
                 byte[] request = PostRequestMerge.merge(ALm, DIS, Headers, MaxRequestSizeKB);
-                HashMap<String, byte[]> response = main(Headers, request);
-                Network.write(DOS, response.get("body"), response.get("mime"), response.get("code"), GZip, CustomHeaders, !new String(response.get("isFile")).equals("0"));
+                HashMap<String, Object> response = main(Headers, request);
+                HashMap<String, String> ResHeaders = new HashMap<>();
+                ResHeaders.putAll(CustomHeaders);
+                if(response.containsKey("CustomHeaders")) ResHeaders.putAll((Map<? extends String, ? extends String>) response.get("CustomHeaders"));
+                Network.write(DOS, (byte[]) response.get("body"), (String) response.get("mime"), (String) response.get("code"), GZip, ResHeaders, !((String) response.get("isFile")).equals("0"));
             } catch (Exception e) {
                 // If you're building a highly-secured system, it is highly recommended to change getStackTrace(e) to something else
-                Network.write(DOS, getStackTrace(e).getBytes(), "text/html".getBytes(), HTTPCode.INTERNAL_SERVER_ERROR.getBytes(), GZip, CustomHeaders, false);
+                Network.write(DOS, getStackTrace(e).getBytes(), "text/html", HTTPCode.INTERNAL_SERVER_ERROR, GZip, CustomHeaders, false);
             }
         }
     }

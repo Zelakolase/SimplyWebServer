@@ -1,6 +1,8 @@
 package test;
 
 import java.util.HashMap;
+import java.util.Random;
+import java.util.TimeZone;
 
 import lib.HTTPCode;
 
@@ -15,14 +17,18 @@ public class ServeFiles extends server.Server {
     }
 
     @Override
-    public HashMap<String, byte[]> main(HashMap<String, String> headers, byte[] body) {
-        HashMap<String, byte[]> response = new HashMap<>();
+    public HashMap<String, Object> main(HashMap<String, String> headers, byte[] body) {
+        HashMap<String, Object> response = new HashMap<>();
         // if you're trying to read a file, pass the path and SWS will take care of the rest
         HashMap<String, String> FileData = this.pathFiltration(headers);
         response.put("body", FileData.get("path").getBytes());
-        response.put("mime", FileData.get("mime").getBytes());
-        response.put("code", HTTPCode.OK.getBytes());
-        response.put("isFile", "1".getBytes());
+        response.put("mime", FileData.get("mime"));
+        response.put("code", HTTPCode.OK);
+        response.put("isFile", "1");
+        // We can add custom headers for every request, this can be useful for setting cookies
+        response.put("CustomHeaders", new HashMap<String, String>() {{
+            put("RandomInteger", String.valueOf(new Random().nextInt(10)));
+        }});
         return response;
     }
 }

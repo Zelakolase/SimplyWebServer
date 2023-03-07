@@ -32,14 +32,14 @@ public class Network {
      * @param customHeaders additional response headers to add like
      *                      'X-XSS-Protection'
      */
-    public static void write(BufferedOutputStream dOS, byte[] ResponseData, byte[] bs, byte[] bs2, boolean GZip, HashMap<String, String> customHeaders, boolean isFile) {
+    public static void write(BufferedOutputStream dOS, byte[] ResponseData, String bs, String bs2, boolean GZip, HashMap<String, String> customHeaders, boolean isFile) {
         try {
             if (GZip) {
                 if (isFile) ResponseData = IO.read(new String(ResponseData));
                 assert ResponseData != null;
                 ResponseData = compress(ResponseData);
             }
-            StringBuilder temp = new StringBuilder((new String(bs2)));
+            StringBuilder temp = new StringBuilder(bs2);
             temp.append("\r\n");
             dOS.write(temp.toString().getBytes());
             for (java.util.Map.Entry<String, String> e : customHeaders.entrySet()) {
@@ -52,10 +52,9 @@ public class Network {
             temp.setLength(0);
             dOS.write(("Connection: close\r\n").getBytes());
             if (GZip) dOS.write("Content-Encoding: gzip\r\n".getBytes());
-            String bss = new String(bs);
             temp.append("Content-Type: ");
-            temp.append(bss);
-            if (bss.equals("text/html")) temp.append(";charset=UTF-8\r\n");
+            temp.append(bs);
+            if (bs.equals("text/html")) temp.append(";charset=UTF-8\r\n");
             else temp.append("\r\n");
             dOS.write(temp.toString().getBytes());
             temp.setLength(0);
