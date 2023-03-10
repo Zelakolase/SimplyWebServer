@@ -59,7 +59,6 @@ public class Server {
         this.handler = handler;
     }
 
-
     private static String getStackTrace(final Throwable throwable) {
         final StringWriter sw = new StringWriter();
         final PrintWriter pw = new PrintWriter(sw, true);
