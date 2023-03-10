@@ -47,6 +47,7 @@ public class Network {
                 temp.append(e.getKey());
                 temp.append(": ");
                 temp.append(e.getValue());
+                temp.append("\r\n");
                 dOS.write(temp.toString().getBytes());
             }
             temp.setLength(0);
@@ -69,9 +70,7 @@ public class Network {
                 BufferedInputStream bis = new BufferedInputStream(is, 1024);
                 byte[] b;
                 while ((b = bis.readNBytes(1024)).length != 0) dOS.write(b);
-            } else {
-                dOS.write(ResponseData);
-            }
+            } else dOS.write(ResponseData);
             dOS.flush();
             dOS.close();
         } catch (Exception e) {

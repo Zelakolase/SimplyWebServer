@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 public abstract class Server {
     private final SparkDB MIME = new SparkDB();
     private final HashMap<String, String> CustomHeaders = new HashMap<>();
-    private int Port = 8080;
+    private int Port = 80;
     private int MaxConcurrentRequests = 1000;
     private boolean GZip = true;
     private int MaxRequestSizeKB = 100_000;
@@ -198,7 +198,7 @@ public abstract class Server {
                 Network.write(DOS, (byte[]) response.get("body"), (String) response.get("mime"), (String) response.get("code"), GZip, ResHeaders, !((String) response.get("isFile")).equals("0"));
             } catch (Exception e) {
                 // If you're building a highly-secured system, it is highly recommended to change getStackTrace(e) to something else
-                Network.write(DOS, getStackTrace(e).getBytes(), "text/html", HTTPCode.INTERNAL_SERVER_ERROR, GZip, CustomHeaders, false);
+                Network.write(DOS, getStackTrace(e).replaceAll("\n", "<br>").getBytes(), "text/html", HTTPCode.INTERNAL_SERVER_ERROR, GZip, CustomHeaders, false);
             }
         }
     }
