@@ -1,6 +1,12 @@
 package server;
 
-import lib.*;
+import http.HttpContentType;
+import http.HttpRequest;
+import http.HttpResponse;
+import http.HttpStatusCode;
+import lib.Network;
+import lib.SparkDB;
+import lib.log;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -9,26 +15,50 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Path;
 import java.security.KeyStore;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map.Entry;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
-public abstract class Server {
+public class Server {
+    public static final String HTTP_PROTO_VERSION = "HTTP/1.1";
+
+    public final int port;
+    public final int maxRequestSizeBytes;
+    public final int maxConcurrentRequests;
+    public final int backlog;
+    public final boolean useGzip;
+    public final String rootDir;
+    public final String mimeFile;
+
     private final SparkDB MIME = new SparkDB();
-    private final HashMap<String, String> CustomHeaders = new HashMap<>();
-    private int Port = 8080;
-    private int MaxConcurrentRequests = 1000;
-    private boolean GZip = true;
-    private int MaxRequestSizeKB = 100_000;
-    private int backlog = MaxConcurrentRequests * 5;
-    private String MIMEFile = "etc/MIME.db";
-    private String WWWDir = "www";
-    private int SOTimeout = 60_000;
-    private int BufferSize = 524288;
+    private final Function<HttpRequest, HttpResponse> handler;
+
+
+    public Server(Function<HttpRequest, HttpResponse> handler) {
+        this(8080, false, handler);
+    }
+
+    public Server(int port, boolean useGzip, Function<HttpRequest, HttpResponse> handler) {
+        this(port, 100000, 4096, 4096, useGzip, handler);
+    }
+
+    public Server(int port, int maxConcurrentRequests, int maxRequestSizeBytes, int maxResponseSizeBytes, boolean useGzip, Function<HttpRequest, HttpResponse> handler) {
+        this(port, maxConcurrentRequests, maxRequestSizeBytes, useGzip, "www", "etc/MIME.db", handler);
+    }
+
+    public Server(int port, int maxConcurrentRequests, int maxRequestSizeBytes, boolean useGzip, String rootDir, String mimeFile, Function<HttpRequest, HttpResponse> handler) {
+        this.port = port;
+        this.maxConcurrentRequests = maxConcurrentRequests;
+        this.backlog = maxConcurrentRequests * 5;
+        this.maxRequestSizeBytes = maxRequestSizeBytes;
+        this.useGzip = useGzip;
+        this.rootDir = rootDir;
+        this.mimeFile = mimeFile;
+        this.handler = handler;
+    }
+
 
     private static String getStackTrace(final Throwable throwable) {
         final StringWriter sw = new StringWriter();
@@ -37,63 +67,21 @@ public abstract class Server {
         return sw.getBuffer().toString();
     }
 
-    public void setSOTimeout(int in) {
-        SOTimeout = in;
-    }
-
-    public void setBufferSize(int in) {
-        BufferSize = in;
-    }
-
-    public void setMaximumConcurrentRequests(int in) {
-        MaxConcurrentRequests = in;
-        backlog = MaxConcurrentRequests * 5;
-    }
-
-    public void setGZip(boolean in) {
-        GZip = in;
-    }
-
-    public void setMaximumRequestSizeInKB(int in) {
-        MaxRequestSizeKB = in;
-    }
-
-    public void setBacklog(int in) {
-        backlog = in;
-    }
-
-    public void setMIMEFile(String in) throws Exception {
-        MIMEFile = in;
-        loadMIME();
-    }
-
-    public void setWWWDirectory(String in) {
-        WWWDir = in;
-    }
-
-    public void setPort(int in) {
-        Port = in;
-    }
-
-    public void addCustomHeader(Entry<String, String> in) {
-        CustomHeaders.put(in.getKey(), in.getValue());
-    }
-
     private void mainLoop(ServerSocket serverSocket, ThreadPoolExecutor poolExecutor) {
         while (true) {
             try {
                 Socket s = serverSocket.accept();
-                s.setKeepAlive(false);
+                s.setKeepAlive(true);
                 s.setTcpNoDelay(true);
-                s.setReceiveBufferSize(BufferSize);
-                s.setSendBufferSize(BufferSize);
-                s.setSoTimeout(SOTimeout);
+                s.setReceiveBufferSize(maxRequestSizeBytes);
+                s.setSendBufferSize(maxRequestSizeBytes);
+                s.setSoTimeout(60000);
 
                 try {
                     poolExecutor.execute(new Engine(s));
                 } catch (RejectedExecutionException ignore) {
                     log.i("concurrent connections exceed the configured maximum");
-                    Network.write(new BufferedOutputStream(s.getOutputStream()), new byte[]{}, new byte[]{}, HTTPCode.SERVICE_UNAVAILABLE.getBytes(), false, new HashMap<>(), false);
+                    Network.write(new BufferedOutputStream(s.getOutputStream()), new HttpResponse("", HttpStatusCode.SERVICE_UNAVAILABLE, HttpContentType.TEXT_PLAIN), false);
                 }
 
             } catch (IOException e) {
@@ -103,13 +91,13 @@ public abstract class Server {
         }
     }
 
-    public void HTTPStart() throws Exception {
+    public void startHttp() throws Exception {
         loadMIME();
         final int nCores = Runtime.getRuntime().availableProcessors();
-        ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(MaxConcurrentRequests);
+        ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(maxConcurrentRequests);
         ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(nCores, nCores, 60, TimeUnit.SECONDS, workQueue);
-        try (ServerSocket serverSocket = new ServerSocket(Port, backlog)) {
-            log.s("Server running at :" + Port);
+        try (ServerSocket serverSocket = new ServerSocket(port, backlog)) {
+            log.s("Server running at :" + port);
             mainLoop(serverSocket, poolExecutor);
         } finally {
             poolExecutor.shutdownNow();
@@ -117,31 +105,31 @@ public abstract class Server {
     }
 
     private void loadMIME() throws Exception {
-        MIME.readFromFile(MIMEFile);
+        MIME.readFromFile(mimeFile);
     }
 
-    public void HTTPSStart(String KeyStorePath, String KeyStorePassword) throws Exception {
-        HTTPSStart(KeyStorePath, KeyStorePassword, "TLSv1.3", "JKS", "SunX509");
+    public void startHttps(String KeyStorePath, String KeyStorePassword) throws Exception {
+        startHttps(KeyStorePath, KeyStorePassword, "TLSv1.3", "JKS", "SunX509");
     }
 
 
-    public void HTTPSStart(String KeyStorePath, String KeyStorePassword, String TLSVersion) throws Exception {
-        HTTPSStart(KeyStorePath, KeyStorePassword, TLSVersion, "JKS", "SunX509");
+    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion) throws Exception {
+        startHttps(KeyStorePath, KeyStorePassword, TLSVersion, "JKS", "SunX509");
     }
 
-    public void HTTPSStart(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType) throws Exception {
-        HTTPSStart(KeyStorePath, KeyStorePassword, TLSVersion, KeyStoreType, "SunX509");
+    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType) throws Exception {
+        startHttps(KeyStorePath, KeyStorePassword, TLSVersion, KeyStoreType, "SunX509");
     }
 
-    public void HTTPSStart(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType, String KeyManagerFactoryType) throws Exception {
+    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType, String KeyManagerFactoryType) throws Exception {
         System.setProperty("jdk.tls.ephemeralDHKeySize", "2048"); // Mitigation against LOGJAM TLS Attack
         System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true"); // Mitigation against Client Renegotiation Attack
         loadMIME();
         final int nCores = Runtime.getRuntime().availableProcessors();
-        ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(MaxConcurrentRequests);
+        ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(maxConcurrentRequests);
         ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(nCores, nCores, 60, TimeUnit.SECONDS, workQueue);
-        try (ServerSocket serverSocket = getSSLContext(Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType, KeyManagerFactoryType).getServerSocketFactory().createServerSocket(Port, backlog)) {
-            log.s("Server running at :" + Port);
+        try (ServerSocket serverSocket = getSSLContext(Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType, KeyManagerFactoryType).getServerSocketFactory().createServerSocket(port, backlog)) {
+            log.s("Server running at :" + port);
             mainLoop(serverSocket, poolExecutor);
         } finally {
             poolExecutor.shutdownNow();
@@ -158,43 +146,24 @@ public abstract class Server {
         return sslContext;
     }
 
-    public HashMap<String, String> pathFiltration(HashMap<String, String> Headers) {
-        String path = "./" + WWWDir + PathFilter.filter(Headers.get("path"));
-        String[] pathSplit = path.split("\\.");
-        String ContentType = MIME.get(new HashMap<>() {{
-            put("extension", pathSplit[pathSplit.length - 1]);
-        }}, "mime", 1).get(0);
-        return new HashMap<>() {{
-            put("path", path);
-            put("mime", ContentType);
-        }};
-    }
-
-    // Keys: body, mime, code, isFile
-    public abstract HashMap<String, byte[]> main(HashMap<String, String> headers, byte[] body);
-
     public class Engine implements Runnable {
         private final Socket s;
 
-        public Engine(Socket S) {
-            s = S;
+        public Engine(Socket s) {
+            this.s = s;
         }
 
         @Override
         public void run() {
-            BufferedInputStream DIS;
-            BufferedOutputStream DOS = null;
+            BufferedInputStream bufferedInputStream;
+            BufferedOutputStream bufferedOutputStream = null;
             try {
-                DIS = new BufferedInputStream(s.getInputStream(), BufferSize);
-                DOS = new BufferedOutputStream(s.getOutputStream(), BufferSize);
-                List<byte[]> ALm = ArraySplit.split(Network.read(DIS, MaxRequestSizeKB).toByteArray(), new byte[]{13, 10, 13, 10});
-                HashMap<String, String> Headers = HeaderToHashmap.convert(new String(ALm.get(0)));
-                byte[] request = PostRequestMerge.merge(ALm, DIS, Headers, MaxRequestSizeKB);
-                HashMap<String, byte[]> response = main(Headers, request);
-                Network.write(DOS, response.get("body"), response.get("mime"), response.get("code"), GZip, CustomHeaders, !new String(response.get("isFile")).equals("0"));
+                bufferedInputStream = new BufferedInputStream(s.getInputStream(), maxRequestSizeBytes);
+                bufferedOutputStream = new BufferedOutputStream(s.getOutputStream(), maxRequestSizeBytes);
+                Network.write(bufferedOutputStream, handler.apply(new HttpRequest(Network.read(bufferedInputStream, maxRequestSizeBytes), Server.this)), useGzip);
             } catch (Exception e) {
                 // If you're building a highly-secured system, it is highly recommended to change getStackTrace(e) to something else
-                Network.write(DOS, getStackTrace(e).getBytes(), "text/html".getBytes(), HTTPCode.INTERNAL_SERVER_ERROR.getBytes(), GZip, CustomHeaders, false);
+                Network.write(bufferedOutputStream, new HttpResponse(getStackTrace(e), HttpStatusCode.NO_CONTENT, HttpContentType.TEXT_PLAIN), false);
             }
         }
     }

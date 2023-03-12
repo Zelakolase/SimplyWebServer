@@ -1,28 +1,35 @@
 package test;
 
-import java.util.HashMap;
+import http.HttpContentType;
+import http.HttpRequest;
+import http.HttpResponse;
+import http.HttpStatusCode;
+import server.Server;
 
-import lib.HTTPCode;
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
-public class ServeFiles extends server.Server {
-    public static void main(String[] args) throws Exception {
-        ServeFiles SF = new ServeFiles();
-        SF.HTTPStart(); // -> For HTTP Servers (default port: 80)
-        /* For HTTPS Servers
-        SF.setPort(443);
-        SF.HTTPSStart("./etc/keystore.jks", "123456");
-        */ 
+public class ServeFiles {
+    private static HttpResponse handle(HttpRequest httpRequest) {
+        HttpResponse httpResponse = new HttpResponse();
+        String path = httpRequest.getPath().replaceFirst("/", "www/");
+        try (BufferedInputStream f = new BufferedInputStream(new FileInputStream(path))) {
+            httpResponse.setHttpStatusCode(HttpStatusCode.OK);
+            httpResponse.setHttpContentType(HttpContentType.TEXT_PLAIN);
+            byte[] fileContents = f.readAllBytes();
+            httpResponse.setBody(new String(fileContents, 0, fileContents.length, StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            httpResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
+            httpResponse.setHttpContentType(HttpContentType.TEXT_PLAIN);
+            httpResponse.setBody("File not found");
+        }
+        return httpResponse;
     }
 
-    @Override
-    public HashMap<String, byte[]> main(HashMap<String, String> headers, byte[] body) {
-        HashMap<String, byte[]> response = new HashMap<>();
-        // if you're trying to read a file, pass the path and SWS will take care of the rest
-        HashMap<String, String> FileData = this.pathFiltration(headers);
-        response.put("body", FileData.get("path").getBytes());
-        response.put("mime", FileData.get("mime").getBytes());
-        response.put("code", HTTPCode.OK.getBytes());
-        response.put("isFile", "1".getBytes());
-        return response;
+    public static void main(String[] args) throws Exception {
+        Server server = new Server(ServeFiles::handle);
+        server.startHttp();
     }
 }

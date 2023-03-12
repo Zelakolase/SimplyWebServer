@@ -1,8 +1,14 @@
 package lib;
 
-import java.io.*;
-import java.util.HashMap;
+import http.HttpResponse;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.zip.GZIPOutputStream;
+
+import static server.Server.HTTP_PROTO_VERSION;
 
 public class Network {
     /**
@@ -24,81 +30,63 @@ public class Network {
     /**
      * HTTP Write Response Function
      *
-     * @param dOS           data stream to write to
-     * @param ResponseData  the body of the http response
-     * @param bs            the content type of the body
-     * @param bs2           the response code (obv.)
-     * @param GZip          weather to use GZip or not
-     * @param customHeaders additional response headers to add like
-     *                      'X-XSS-Protection'
+     * @param outputStream data stream to write to
+     * @param httpResponse the http response
+     * @param gzip         whether to compress the body using gzip or not
      */
-    public static void write(BufferedOutputStream dOS, byte[] ResponseData, byte[] bs, byte[] bs2, boolean GZip, HashMap<String, String> customHeaders, boolean isFile) {
-        try {
-            if (GZip) {
-                if (isFile) ResponseData = IO.read(new String(ResponseData));
-                assert ResponseData != null;
-                ResponseData = compress(ResponseData);
-            }
-            StringBuilder temp = new StringBuilder((new String(bs2)));
+    public static void write(BufferedOutputStream outputStream, HttpResponse httpResponse, boolean gzip) {
+        StringBuilder temp = new StringBuilder(1024);
+        temp.append(HTTP_PROTO_VERSION);
+        temp.append(' ');
+        temp.append(httpResponse.getHttpStatusCode().getHtmlCode());
+        temp.append(' ');
+        temp.append(httpResponse.getHttpStatusCode().toString());
+        temp.append("\r\n");
+        httpResponse.getHeaders().forEach((key, value) -> {
+            temp.append(key.toLowerCase());
+            temp.append(": ");
+            temp.append(value.toLowerCase());
             temp.append("\r\n");
-            dOS.write(temp.toString().getBytes());
-            for (java.util.Map.Entry<String, String> e : customHeaders.entrySet()) {
-                temp.setLength(0);
-                temp.append(e.getKey());
-                temp.append(": ");
-                temp.append(e.getValue());
-                dOS.write(temp.toString().getBytes());
-            }
-            temp.setLength(0);
-            dOS.write(("Connection: close\r\n").getBytes());
-            if (GZip) dOS.write("Content-Encoding: gzip\r\n".getBytes());
-            String bss = new String(bs);
-            temp.append("Content-Type: ");
-            temp.append(bss);
-            if (bss.equals("text/html")) temp.append(";charset=UTF-8\r\n");
-            else temp.append("\r\n");
-            dOS.write(temp.toString().getBytes());
-            temp.setLength(0);
-            if (!isFile) {
-                temp.append("Content-Length: ");
-                temp.append(ResponseData.length);
-            }
-            temp.append("\r\n\r\n");
-            dOS.write(temp.toString().getBytes());
-            if (isFile && !GZip) {
-                FileInputStream is = new FileInputStream(new String(ResponseData));
-                BufferedInputStream bis = new BufferedInputStream(is, 1024);
-                byte[] b;
-                while ((b = bis.readNBytes(1024)).length != 0) dOS.write(b);
+        });
+        temp.append("content-type: ");
+        temp.append(httpResponse.getHttpContentType());
+        temp.append("\r\n");
+
+        try {
+            if (gzip) {
+                byte[] body = compress(httpResponse.getBody().getBytes());
+                temp.append("content-encoding: gzip\r\n");
+                temp.append("content-length: ");
+                temp.append(body.length);
+                temp.append("\r\n\r\n");
+                outputStream.write(temp.toString().getBytes());
+                outputStream.write(body);
             } else {
-                dOS.write(ResponseData);
+                temp.append("content-length: ");
+                temp.append(httpResponse.getBody().length());
+                temp.append("\r\n\r\n");
+                temp.append(httpResponse.getBody());
+                outputStream.write(temp.toString().getBytes());
             }
-            dOS.flush();
-            dOS.close();
+            outputStream.close();
         } catch (Exception e) {
             log.e(e, Network.class.getName(), "write");
         }
     }
 
     /**
-     * Reads from socket into ArrayList
+     * Reads a bare request from a socket
      *
-     * @param MAX_REQ_SIZE the maximum kbytes to read
+     * @param maxReqSize the maximum bytes to read
+     * @return String representing the request
      */
-    public static ByteArrayOutputStream read(BufferedInputStream dIS, int MAX_REQ_SIZE) {
-        MAX_REQ_SIZE = MAX_REQ_SIZE * 1000;
-        ByteArrayOutputStream Reply = new ByteArrayOutputStream(1024);
-        int counter = 0;
-        try {
-            do {
-                if (counter < MAX_REQ_SIZE) {
-                    Reply.write(dIS.read());
-                    counter++;
-                } else break;
-            } while (dIS.available() > 0);
-        } catch (Exception ignored) {
+    public static String read(BufferedInputStream inputStream, int maxReqSize) throws IOException {
+        byte[] buffer = new byte[maxReqSize];
+        if (inputStream.read(buffer, 0, maxReqSize) == maxReqSize) {
+            throw new IOException("Request to big");
         }
-        return Reply;
+        return new String(buffer);
+
     }
 
     /**
