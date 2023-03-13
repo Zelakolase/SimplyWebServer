@@ -37,7 +37,7 @@ public class Server {
 
 
     public Server(Function<HttpRequest, HttpResponse> handler) {
-        this(8080, false, handler);
+        this(80, false, handler);
     }
 
     public Server(int port, boolean useGzip, Function<HttpRequest, HttpResponse> handler) {
