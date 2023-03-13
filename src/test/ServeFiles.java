@@ -6,11 +6,11 @@ import http.HttpResponse;
 import http.HttpStatusCode;
 import server.Server;
 
-
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Random;
 
 public class ServeFiles {
     private static HttpResponse handle(HttpRequest httpRequest) {
@@ -26,6 +26,9 @@ public class ServeFiles {
             httpResponse.setHttpContentType(HttpContentType.TEXT_PLAIN);
             httpResponse.setBody("File not found");
         }
+        // We can add custom headers changes for each request
+        httpResponse.addHeader("Rand-Int", new Random().nextInt(10));
+        
         return httpResponse;
     }
 

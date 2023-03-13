@@ -23,18 +23,30 @@ public class SimpleLogin {
             httpResponse.setHttpContentType(HttpContentType.APPLICATION_JSON);
             HashMap<String, String> LoginInfo = JSON.QHM(httpRequest.getBody());
             if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
-                httpResponse.setBody("{\"success\": \"false\"}");
+                httpResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                    put("success", "false");
+                }}));
             } else {
                 if (LoginInfo.get("username").equals(username) && LoginInfo.get("password").equals(password)) {
-                    httpResponse.setBody("{\"success\": \"true\"}");
+                    httpResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                        put("success", "true");
+                    }}));
                 } else {
-                    httpResponse.setBody("{\"success\": \"false\"}");
+                    httpResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                        put("success", "false");
+                    }}));
                 }
             }
         } else {
-            httpResponse.setBody("{\"success\": \"false\", \"error\": \"file not found\"}");
+            httpResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                put("success", "false");
+                put("error", "File not found");
+            }}));
             httpResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
         }
+        // We can add custom headers changes for each request
+        httpResponse.addHeader("Rand-Int", new Random().nextInt(10));
+        
         return httpResponse;
     }
 
