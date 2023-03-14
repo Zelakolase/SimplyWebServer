@@ -6,7 +6,7 @@ public interface ServerConfig {
     int MAX_RESPONSE_SIZE_BYTES = 8192;
     int MAX_CONCURRENT_CONNECTIONS = 10000;
 
-    boolean KEEP_ALIVE = true;
+    boolean KEEP_ALIVE = false;
     boolean TCP_NODELAY = true;
 
     String ROOT_DIR = "www";
