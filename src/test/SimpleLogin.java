@@ -17,31 +17,22 @@ public class SimpleLogin {
 
         if (httpRequest.getPath().equals("/index.html")) {
             httpResponse.setHttpContentType(HttpContentType.TEXT_HTML);
-            httpResponse.setBody(HTMLCode);
+            httpResponse.getBuffer().put(HTMLCode.getBytes());
             httpResponse.setHttpStatusCode(HttpStatusCode.OK);
         } else if (httpRequest.getPath().equals("/api/login") && httpRequest.getHttpRequestMethod() == HttpRequestMethod.POST) {
             httpResponse.setHttpContentType(HttpContentType.APPLICATION_JSON);
             HashMap<String, String> LoginInfo = JSON.QHM(httpRequest.getBody());
             if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
-                httpResponse.setBody(JSON.HMQ(new HashMap<>() {{
-                    put("success", "false");
-                }}));
+                httpResponse.setBuffer("{\"success\": \"false\"}");
             } else {
                 if (LoginInfo.get("username").equals(username) && LoginInfo.get("password").equals(password)) {
-                    httpResponse.setBody(JSON.HMQ(new HashMap<>() {{
-                        put("success", "true");
-                    }}));
+                    httpResponse.setBuffer("{\"success\": \"true\"}");
                 } else {
-                    httpResponse.setBody(JSON.HMQ(new HashMap<>() {{
-                        put("success", "false");
-                    }}));
+                    httpResponse.setBuffer("{\"success\": \"false\"}");
                 }
             }
         } else {
-            httpResponse.setBody(JSON.HMQ(new HashMap<>() {{
-                put("success", "false");
-                put("error", "File not found");
-            }}));
+            httpResponse.setBuffer("{\"success\": \"false\", \"error\": \"file not found\"}");
             httpResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
         }
         // We can add custom headers changes for each request

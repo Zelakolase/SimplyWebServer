@@ -20,11 +20,11 @@ public class ServeFiles {
             httpResponse.setHttpStatusCode(HttpStatusCode.OK);
             httpResponse.setHttpContentType(HttpContentType.TEXT_PLAIN);
             byte[] fileContents = f.readAllBytes();
-            httpResponse.setBody(new String(fileContents, 0, fileContents.length, StandardCharsets.UTF_8));
+            httpResponse.setBuffer(new String(fileContents, 0, fileContents.length, StandardCharsets.UTF_8));
         } catch (IOException e) {
             httpResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
             httpResponse.setHttpContentType(HttpContentType.TEXT_PLAIN);
-            httpResponse.setBody("File not found");
+            httpResponse.setBuffer("File not found");
         }
         // We can add custom headers changes for each request
         httpResponse.addHeader("Rand-Int", new Random().nextInt(10));

@@ -1,61 +1,44 @@
 package server;
 
-import http.HttpContentType;
 import http.HttpRequest;
 import http.HttpResponse;
-import http.HttpStatusCode;
-import lib.Network;
+import http.exceptions.HttpRequestException;
 import lib.SparkDB;
 import lib.log;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import java.io.*;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
+import java.nio.ByteBuffer;
+import java.nio.channels.*;
 import java.nio.file.Path;
 import java.security.KeyStore;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.Iterator;
 import java.util.function.Function;
 
-public class Server {
-    public static final String HTTP_PROTO_VERSION = "HTTP/1.1";
+import static http.ServerConfig.*;
 
-    public final int port;
-    public final int maxRequestSizeBytes;
-    public final int maxConcurrentRequests;
+public class Server {
+
     public final int backlog;
     public final boolean useGzip;
-    public final String rootDir;
-    public final String mimeFile;
 
     private final SparkDB MIME = new SparkDB();
     private final Function<HttpRequest, HttpResponse> handler;
 
 
     public Server(Function<HttpRequest, HttpResponse> handler) {
-        this(80, false, handler);
+        this(handler, false);
     }
 
-    public Server(int port, boolean useGzip, Function<HttpRequest, HttpResponse> handler) {
-        this(port, 100000, 4096, 4096, useGzip, handler);
-    }
-
-    public Server(int port, int maxConcurrentRequests, int maxRequestSizeBytes, int maxResponseSizeBytes, boolean useGzip, Function<HttpRequest, HttpResponse> handler) {
-        this(port, maxConcurrentRequests, maxRequestSizeBytes, useGzip, "www", "etc/MIME.db", handler);
-    }
-
-    public Server(int port, int maxConcurrentRequests, int maxRequestSizeBytes, boolean useGzip, String rootDir, String mimeFile, Function<HttpRequest, HttpResponse> handler) {
-        this.port = port;
-        this.maxConcurrentRequests = maxConcurrentRequests;
-        this.backlog = maxConcurrentRequests * 5;
-        this.maxRequestSizeBytes = maxRequestSizeBytes;
+    public Server(Function<HttpRequest, HttpResponse> handler, boolean useGzip) {
+        this.backlog = MAX_CONCURRENT_REQUESTS * 5;
         this.useGzip = useGzip;
-        this.rootDir = rootDir;
-        this.mimeFile = mimeFile;
         this.handler = handler;
     }
 
@@ -66,26 +49,88 @@ public class Server {
         return sw.getBuffer().toString();
     }
 
-    private void mainLoop(ServerSocket serverSocket, ThreadPoolExecutor poolExecutor) {
+    private void mainLoop(Selector selector) {
         while (true) {
             try {
-                Socket s = serverSocket.accept();
-                s.setKeepAlive(true);
-                s.setTcpNoDelay(true);
-                s.setReceiveBufferSize(maxRequestSizeBytes);
-                s.setSendBufferSize(maxRequestSizeBytes);
-                s.setSoTimeout(60000);
+                selector.select();
+                Iterator<SelectionKey> keysIterator = selector.selectedKeys().iterator();
 
-                try {
-                    poolExecutor.execute(new Engine(s));
-                } catch (RejectedExecutionException ignore) {
-                    log.i("concurrent connections exceed the configured maximum");
-                    Network.write(new BufferedOutputStream(s.getOutputStream()), new HttpResponse("", HttpStatusCode.SERVICE_UNAVAILABLE, HttpContentType.TEXT_PLAIN), false);
+                while (keysIterator.hasNext()) {
+                    SelectionKey key = keysIterator.next();
+
+                    if (!key.isValid()) {
+                        continue;
+                    } else if (key.isAcceptable()) {
+                        ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
+                        SocketChannel socketChannel = serverSocketChannel.accept();
+                        if (socketChannel != null) {
+                            socketChannel.configureBlocking(false);
+                            socketChannel.register(selector, SelectionKey.OP_READ);
+                        }
+                    } else if (key.isReadable()) {
+                        keysIterator.remove();
+                        SocketChannel socketChannel = (SocketChannel) key.channel();
+                        socketChannel.socket().setOption(StandardSocketOptions.SO_KEEPALIVE, KEEP_ALIVE)
+                                .setOption(StandardSocketOptions.TCP_NODELAY, TCP_NODELAY)
+                                .setOption(StandardSocketOptions.SO_RCVBUF, MAX_REQUEST_SIZE_BYTES)
+                                .setOption(StandardSocketOptions.SO_SNDBUF, MAX_RESPONSE_SIZE_BYTES);
+
+                        ByteBuffer buffer = ByteBuffer.allocate(MAX_REQUEST_SIZE_BYTES + 1);
+                        if (socketChannel.read(buffer) > MAX_REQUEST_SIZE_BYTES) {
+                            socketChannel.close();
+                            throw new IOException("Request too big");
+                        }
+                        buffer.flip();
+                        if (buffer.limit() == 0) {
+                            socketChannel.close();
+                            continue;
+                        }
+
+                        HttpRequest httpRequest;
+                        if (key.attachment() != null) {
+                            httpRequest = (HttpRequest) key.attachment();
+                            httpRequest.appendBuffer(buffer);
+                        } else {
+                            try {
+                                httpRequest = new HttpRequest(buffer);
+                            } catch (HttpRequestException exception) {
+                                socketChannel.close();
+                                continue;
+                            }
+                        }
+
+                        if (httpRequest.getHeaders().containsKey("content-length")) {
+                            int contentLength = Integer.parseInt(httpRequest.getHeaders().get("content-length"), 10);
+                            if (contentLength > MAX_REQUEST_SIZE_BYTES - httpRequest.getHeaderSize()) {
+                                socketChannel.close();
+                                throw new IOException("Request too big");
+                            }
+
+                            if (httpRequest.getBodySize() < contentLength) {
+                                socketChannel.register(selector, SelectionKey.OP_READ, httpRequest);
+                                continue;
+                            }
+                        }
+
+                        try {
+                            socketChannel.register(selector, SelectionKey.OP_WRITE, handler.apply(httpRequest));
+                        } catch (ClosedChannelException e) {
+                            throw new RuntimeException(e);
+                        }
+//                            log.i("concurrent connections exceed the configured maximum");
+
+
+                    } else if (key.isWritable()) {
+                        keysIterator.remove();
+                        try (SocketChannel socketChannel = (SocketChannel) key.channel()) {
+                            socketChannel.write(((HttpResponse) key.attachment()).getHttpResponseBuffer(useGzip));
+                        }
+                    }
+
+
                 }
-
             } catch (IOException e) {
-                log.e(e.getMessage());
-                return;
+                log.e(getStackTrace(e));
             }
         }
     }
@@ -93,18 +138,31 @@ public class Server {
     public void startHttp() throws Exception {
         loadMIME();
         final int nCores = Runtime.getRuntime().availableProcessors();
-        ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(maxConcurrentRequests);
-        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(nCores, nCores, 60, TimeUnit.SECONDS, workQueue);
-        try (ServerSocket serverSocket = new ServerSocket(port, backlog)) {
-            log.s("Server running at :" + port);
-            mainLoop(serverSocket, poolExecutor);
-        } finally {
-            poolExecutor.shutdownNow();
+        final Thread[] threads = new Thread[nCores];
+
+        for (int i = 0; i < nCores; ++i) {
+            threads[i] = new Thread(() -> {
+                try (Selector selector = Selector.open();
+                     ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
+                    serverSocketChannel.configureBlocking(false);
+                    serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+                    serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEPORT, true);
+                    serverSocketChannel.bind(new InetSocketAddress(PORT), backlog);
+                    serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+                    mainLoop(selector);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            threads[i].start();
         }
+
+        for (Thread thread : threads)
+            thread.join();
     }
 
     private void loadMIME() throws Exception {
-        MIME.readFromFile(mimeFile);
+        MIME.readFromFile(MIME_DB);
     }
 
     public void startHttps(String KeyStorePath, String KeyStorePassword) throws Exception {
@@ -125,14 +183,28 @@ public class Server {
         System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true"); // Mitigation against Client Renegotiation Attack
         loadMIME();
         final int nCores = Runtime.getRuntime().availableProcessors();
-        ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(maxConcurrentRequests);
-        ThreadPoolExecutor poolExecutor = new ThreadPoolExecutor(nCores, nCores, 60, TimeUnit.SECONDS, workQueue);
-        try (ServerSocket serverSocket = getSSLContext(Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType, KeyManagerFactoryType).getServerSocketFactory().createServerSocket(port, backlog)) {
-            log.s("Server running at :" + port);
-            mainLoop(serverSocket, poolExecutor);
-        } finally {
-            poolExecutor.shutdownNow();
+        final Thread[] threads = new Thread[nCores];
+
+        log.s("Server running at :" + PORT);
+        for (int i = 0; i < nCores; ++i) {
+            threads[i] = new Thread(() -> {
+                try (Selector selector = Selector.open();
+                     ServerSocketChannel serverSocketChannel = getSSLContext(Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType, KeyManagerFactoryType).getServerSocketFactory().createServerSocket(PORT, backlog).getChannel()) {
+                    serverSocketChannel.configureBlocking(false);
+                    serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+                    serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEPORT, true);
+                    serverSocketChannel.bind(new InetSocketAddress(PORT), backlog);
+                    serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+                    mainLoop(selector);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            threads[i].start();
         }
+
+        for (Thread thread : threads)
+            thread.join();
     }
 
     private SSLContext getSSLContext(Path keyStorePath, char[] keyStorePass, String TLSVersion, String KeyStoreType, String KeyManagerFactoryType) throws Exception {
@@ -143,27 +215,5 @@ public class Server {
         var sslContext = SSLContext.getInstance(TLSVersion);
         sslContext.init(keyManagerFactory.getKeyManagers(), null, null);
         return sslContext;
-    }
-
-    public class Engine implements Runnable {
-        private final Socket s;
-
-        public Engine(Socket s) {
-            this.s = s;
-        }
-
-        @Override
-        public void run() {
-            BufferedInputStream bufferedInputStream;
-            BufferedOutputStream bufferedOutputStream = null;
-            try {
-                bufferedInputStream = new BufferedInputStream(s.getInputStream(), maxRequestSizeBytes);
-                bufferedOutputStream = new BufferedOutputStream(s.getOutputStream(), maxRequestSizeBytes);
-                Network.write(bufferedOutputStream, handler.apply(new HttpRequest(Network.read(bufferedInputStream, maxRequestSizeBytes), Server.this)), useGzip);
-            } catch (Exception e) {
-                // If you're building a highly-secured system, it is highly recommended to change getStackTrace(e) to something else
-                Network.write(bufferedOutputStream, new HttpResponse(getStackTrace(e), HttpStatusCode.NO_CONTENT, HttpContentType.TEXT_PLAIN), false);
-            }
-        }
     }
 }
