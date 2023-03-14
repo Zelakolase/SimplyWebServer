@@ -35,5 +35,9 @@ public class ServeFiles {
     public static void main(String[] args) throws Exception {
         Server server = new Server(ServeFiles::handle);
         server.startHttp();
+        /* For HTTPS
+         * server.port = 443;
+         * server.startHttps("./etc/keystore.jks", "123456");
+         */
     }
 }

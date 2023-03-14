@@ -54,6 +54,10 @@ public class SimpleLogin {
 
         Server server = new Server(SimpleLogin::handle);
         server.startHttp();
+        /* For HTTPS
+         * server.port = 443;
+         * server.startHttps("./etc/keystore.jks", "123456");
+         */
     }
 
 }

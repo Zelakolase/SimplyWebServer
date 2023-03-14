@@ -37,11 +37,11 @@ public class Server {
 
 
     public Server(Function<HttpRequest, HttpResponse> handler) {
-        this(80, false, handler);
+        this(8080, false, handler);
     }
 
     public Server(int port, boolean useGzip, Function<HttpRequest, HttpResponse> handler) {
-        this(port, 100000, 4096, 4096, useGzip, handler);
+        this(port, 10_000, 4096, 4096, useGzip, handler);
     }
 
     public Server(int port, int maxConcurrentRequests, int maxRequestSizeBytes, int maxResponseSizeBytes, boolean useGzip, Function<HttpRequest, HttpResponse> handler) {
