@@ -94,17 +94,18 @@ public class Server {
                         }
 
                         HttpRequest httpRequest;
-                        if (key.attachment() != null) {
-                            httpRequest = (HttpRequest) key.attachment();
-                            httpRequest.appendBuffer(buffer);
-                        } else {
-                            try {
+                        try {
+                            if (key.attachment() != null) {
+                                httpRequest = (HttpRequest) key.attachment();
+                                httpRequest.appendBuffer(buffer);
+                            } else {
                                 httpRequest = new HttpRequest(buffer);
-                            } catch (HttpRequestException exception) {
-                                socketChannel.close();
-                                --currentConnections;
-                                continue;
                             }
+                        } catch (HttpRequestException exception) {
+                            socketChannel.close();
+                            --currentConnections;
+                            log.e(getStackTrace(exception));
+                            continue;
                         }
 
                         if (httpRequest.getHeaders().containsKey("content-length")) {
