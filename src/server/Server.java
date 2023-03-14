@@ -151,6 +151,7 @@ public class Server {
         final int nCores = Runtime.getRuntime().availableProcessors();
         final Thread[] threads = new Thread[nCores];
 
+        log.s("Server running at :" + PORT);
         for (int i = 0; i < nCores; ++i) {
             threads[i] = new Thread(() -> {
                 try (Selector selector = Selector.open(); ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
