@@ -12,19 +12,21 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 
+import static http.ServerConfig.ROOT_DIR;
+
 public class ServeFiles {
     private static HttpResponse handle(HttpRequest httpRequest) {
         HttpResponse httpResponse = new HttpResponse();
-        String path = httpRequest.getPath().replaceFirst("/", "www/");
+        String path = httpRequest.getPath().replaceFirst("/", ROOT_DIR);
         try (BufferedInputStream f = new BufferedInputStream(new FileInputStream(path))) {
             httpResponse.setHttpStatusCode(HttpStatusCode.OK);
             httpResponse.setHttpContentType(HttpContentType.TEXT_PLAIN);
             byte[] fileContents = f.readAllBytes();
-            httpResponse.setBody(new String(fileContents, 0, fileContents.length, StandardCharsets.UTF_8));
+            httpResponse.setBuffer(new String(fileContents, 0, fileContents.length, StandardCharsets.UTF_8));
         } catch (IOException e) {
             httpResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
             httpResponse.setHttpContentType(HttpContentType.TEXT_PLAIN);
-            httpResponse.setBody("File not found");
+            httpResponse.setBuffer("File not found");
         }
         // We can add custom headers changes for each request
         httpResponse.addHeader("Rand-Int", new Random().nextInt(10));
