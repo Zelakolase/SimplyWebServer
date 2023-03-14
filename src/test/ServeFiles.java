@@ -12,10 +12,12 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 
+import static http.ServerConfig.ROOT_DIR;
+
 public class ServeFiles {
     private static HttpResponse handle(HttpRequest httpRequest) {
         HttpResponse httpResponse = new HttpResponse();
-        String path = httpRequest.getPath().replaceFirst("/", "www/");
+        String path = httpRequest.getPath().replaceFirst("/", ROOT_DIR);
         try (BufferedInputStream f = new BufferedInputStream(new FileInputStream(path))) {
             httpResponse.setHttpStatusCode(HttpStatusCode.OK);
             httpResponse.setHttpContentType(HttpContentType.TEXT_PLAIN);

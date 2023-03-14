@@ -9,10 +9,10 @@ import static http.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
 import static lib.Network.compress;
 
 public class HttpResponse {
-    private HttpStatusCode httpStatusCode;
-    private HttpContentType httpContentType;
     private final ByteBuffer buffer = ByteBuffer.allocate(MAX_RESPONSE_SIZE_BYTES);
     private final HashMap<String, String> headers = new HashMap<>();
+    private HttpStatusCode httpStatusCode;
+    private HttpContentType httpContentType;
 
     public HttpResponse() {
         this(HttpContentType.TEXT_HTML);
@@ -82,12 +82,20 @@ public class HttpResponse {
         return buffer;
     }
 
-        public HttpContentType getHttpContentType() {
+    public HttpContentType getHttpContentType() {
         return httpContentType;
+    }
+
+    public void setHttpContentType(HttpContentType httpContentType) {
+        this.httpContentType = httpContentType;
     }
 
     public HttpStatusCode getHttpStatusCode() {
         return this.httpStatusCode;
+    }
+
+    public void setHttpStatusCode(HttpStatusCode httpStatusCode) {
+        this.httpStatusCode = httpStatusCode;
     }
 
     public ByteBuffer getBuffer() {
@@ -100,13 +108,5 @@ public class HttpResponse {
 
     public HashMap<String, String> getHeaders() {
         return headers;
-    }
-
-    public void setHttpStatusCode(HttpStatusCode httpStatusCode) {
-        this.httpStatusCode = httpStatusCode;
-    }
-
-    public void setHttpContentType(HttpContentType httpContentType) {
-        this.httpContentType = httpContentType;
     }
 }

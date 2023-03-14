@@ -1,14 +1,10 @@
 package lib;
 
-import http.HttpResponse;
-
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
 import java.util.zip.GZIPOutputStream;
-
-import static http.ServerConfig.*;
-import static http.ServerConfig.HTTP_PROTO_VERSION;
 
 public class Network {
     /**

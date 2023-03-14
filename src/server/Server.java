@@ -37,7 +37,7 @@ public class Server {
     }
 
     public Server(Function<HttpRequest, HttpResponse> handler, boolean useGzip) {
-        this.backlog = MAX_CONCURRENT_REQUESTS * 5;
+        this.backlog = MAX_CONCURRENT_CONNECTIONS * 5;
         this.useGzip = useGzip;
         this.handler = handler;
     }
@@ -49,7 +49,9 @@ public class Server {
         return sw.getBuffer().toString();
     }
 
-    private void mainLoop(Selector selector) {
+    private void mainLoop(Selector selector, int maxConcurrentConnections) {
+        int currentConnections = 0;
+
         while (true) {
             try {
                 selector.select();
@@ -64,25 +66,30 @@ public class Server {
                         ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
                         SocketChannel socketChannel = serverSocketChannel.accept();
                         if (socketChannel != null) {
+                            if (++currentConnections > maxConcurrentConnections) {
+                                socketChannel.close();
+                                --currentConnections;
+                                log.e("maximum concurrent connections reached");
+                            }
+
                             socketChannel.configureBlocking(false);
                             socketChannel.register(selector, SelectionKey.OP_READ);
                         }
                     } else if (key.isReadable()) {
                         keysIterator.remove();
                         SocketChannel socketChannel = (SocketChannel) key.channel();
-                        socketChannel.socket().setOption(StandardSocketOptions.SO_KEEPALIVE, KEEP_ALIVE)
-                                .setOption(StandardSocketOptions.TCP_NODELAY, TCP_NODELAY)
-                                .setOption(StandardSocketOptions.SO_RCVBUF, MAX_REQUEST_SIZE_BYTES)
-                                .setOption(StandardSocketOptions.SO_SNDBUF, MAX_RESPONSE_SIZE_BYTES);
+                        socketChannel.socket().setOption(StandardSocketOptions.SO_KEEPALIVE, KEEP_ALIVE).setOption(StandardSocketOptions.TCP_NODELAY, TCP_NODELAY).setOption(StandardSocketOptions.SO_RCVBUF, MAX_REQUEST_SIZE_BYTES).setOption(StandardSocketOptions.SO_SNDBUF, MAX_RESPONSE_SIZE_BYTES);
 
                         ByteBuffer buffer = ByteBuffer.allocate(MAX_REQUEST_SIZE_BYTES + 1);
                         if (socketChannel.read(buffer) > MAX_REQUEST_SIZE_BYTES) {
                             socketChannel.close();
+                            --currentConnections;
                             throw new IOException("Request too big");
                         }
                         buffer.flip();
                         if (buffer.limit() == 0) {
                             socketChannel.close();
+                            --currentConnections;
                             continue;
                         }
 
@@ -95,6 +102,7 @@ public class Server {
                                 httpRequest = new HttpRequest(buffer);
                             } catch (HttpRequestException exception) {
                                 socketChannel.close();
+                                --currentConnections;
                                 continue;
                             }
                         }
@@ -103,6 +111,7 @@ public class Server {
                             int contentLength = Integer.parseInt(httpRequest.getHeaders().get("content-length"), 10);
                             if (contentLength > MAX_REQUEST_SIZE_BYTES - httpRequest.getHeaderSize()) {
                                 socketChannel.close();
+                                --currentConnections;
                                 throw new IOException("Request too big");
                             }
 
@@ -124,6 +133,7 @@ public class Server {
                         keysIterator.remove();
                         try (SocketChannel socketChannel = (SocketChannel) key.channel()) {
                             socketChannel.write(((HttpResponse) key.attachment()).getHttpResponseBuffer(useGzip));
+                            --currentConnections;
                         }
                     }
 
@@ -142,14 +152,13 @@ public class Server {
 
         for (int i = 0; i < nCores; ++i) {
             threads[i] = new Thread(() -> {
-                try (Selector selector = Selector.open();
-                     ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
+                try (Selector selector = Selector.open(); ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
                     serverSocketChannel.configureBlocking(false);
                     serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
                     serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEPORT, true);
                     serverSocketChannel.bind(new InetSocketAddress(PORT), backlog);
                     serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-                    mainLoop(selector);
+                    mainLoop(selector, MAX_CONCURRENT_CONNECTIONS / nCores);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -188,14 +197,13 @@ public class Server {
         log.s("Server running at :" + PORT);
         for (int i = 0; i < nCores; ++i) {
             threads[i] = new Thread(() -> {
-                try (Selector selector = Selector.open();
-                     ServerSocketChannel serverSocketChannel = getSSLContext(Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType, KeyManagerFactoryType).getServerSocketFactory().createServerSocket(PORT, backlog).getChannel()) {
+                try (Selector selector = Selector.open(); ServerSocketChannel serverSocketChannel = getSSLContext(Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType, KeyManagerFactoryType).getServerSocketFactory().createServerSocket(PORT, backlog).getChannel()) {
                     serverSocketChannel.configureBlocking(false);
                     serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
                     serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEPORT, true);
                     serverSocketChannel.bind(new InetSocketAddress(PORT), backlog);
                     serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-                    mainLoop(selector);
+                    mainLoop(selector, MAX_CONCURRENT_CONNECTIONS / nCores);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }

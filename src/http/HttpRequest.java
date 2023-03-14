@@ -1,7 +1,6 @@
 package http;
 
 import http.exceptions.HttpRequestException;
-import lib.log;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -21,7 +20,9 @@ public class HttpRequest {
     public HttpRequest(ByteBuffer rawRequest) throws HttpRequestException {
         String request = new String(rawRequest.array(), 0, rawRequest.limit(), StandardCharsets.US_ASCII);
         String[] lines = request.split("\r\n");
-        if (lines.length == 0) { throw new HttpRequestException("malformed http request"); }
+        if (lines.length == 0) {
+            throw new HttpRequestException("malformed http request");
+        }
 
         headerSize += lines[0].length() + 2;
         String[] tokens = lines[0].split("\\s");
@@ -44,7 +45,9 @@ public class HttpRequest {
         for (; idx < lines.length && !lines[idx].isBlank(); ++idx) {
             headerSize += lines[idx].length() + 2;
             tokens = lines[idx].split(":", 2);
-            if (tokens.length != 2) { throw new HttpRequestException("missing colon in http header"); }
+            if (tokens.length != 2) {
+                throw new HttpRequestException("missing colon in http header");
+            }
             headers.put(tokens[0].toLowerCase().trim(), tokens[1].toLowerCase().trim());
         }
 
