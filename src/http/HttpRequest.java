@@ -1,7 +1,6 @@
 package http;
 
 import http.exceptions.HttpRequestException;
-import lib.log;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
