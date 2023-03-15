@@ -11,7 +11,7 @@ import static http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
 
 public class HttpRequest {
     private final String path;
-    private final ByteBuffer buffer;
+    private final ByteBuffer body;
     private final String httpRequestMethod;
     private final HashMap<String, String> headers = new HashMap<>();
 
@@ -28,7 +28,8 @@ public class HttpRequest {
         String[] tokens = lines[0].split("\\s");
 
         httpRequestMethod = tokens[0];
-        this.path = tokens[1];
+        String tempPath = tokens[1].replaceAll("\\.\\.", "").replaceAll("//", "/");
+        this.path = tempPath.endsWith("/") ? tempPath + "index.html" : tempPath;
 
         int idx = 1;
         for (; idx < lines.length && !lines[idx].isBlank(); ++idx) {
@@ -50,25 +51,25 @@ public class HttpRequest {
             }
             buffer.flip();
             this.bodySize = buffer.limit();
-            this.buffer = buffer;
+            this.body = buffer;
         } catch (BufferOverflowException ignored) {
             throw new HttpRequestException("http request too big");
         }
     }
 
     public void appendBuffer(ByteBuffer buffer) {
-        this.buffer.limit(bodySize);
-        this.buffer.put(buffer);
-        this.buffer.flip();
-        bodySize = this.buffer.limit();
+        this.body.limit(bodySize);
+        this.body.put(buffer);
+        this.body.flip();
+        bodySize = this.body.limit();
     }
 
     public String getPath() {
         return path;
     }
 
-    public String getBody() {
-        return new String(buffer.array(), 0, buffer.limit());
+    public byte[] getBody() {
+        return body.array();
     }
 
     public int getBodySize() {
@@ -77,10 +78,6 @@ public class HttpRequest {
 
     public int getHeaderSize() {
         return headerSize;
-    }
-
-    public ByteBuffer getBuffer() {
-        return buffer;
     }
 
     public HashMap<String, String> getHeaders() {

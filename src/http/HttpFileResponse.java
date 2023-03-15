@@ -19,7 +19,6 @@ import static lib.Network.compress;
 
 public class HttpFileResponse extends HttpResponse {
     private final FileChannel fileChannel;
-    private final boolean isFile = true;
     private final Path filePath;
 
     public HttpFileResponse(String filePathString) throws IOException, HttpResponseException {
