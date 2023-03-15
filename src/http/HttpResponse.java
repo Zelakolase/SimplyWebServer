@@ -64,12 +64,12 @@ public class HttpResponse {
                 ByteBuffer compressedBody = compress(this.buffer);
                 buffer.put("content-encoding: gzip\r\n".getBytes());
                 buffer.put("content-length: ".getBytes());
-                buffer.put(String.valueOf(compressedBody.limit()).getBytes());
+                buffer.put(String.valueOf(compressedBody.position()).getBytes());
                 buffer.put("\r\n\r\n".getBytes());
                 buffer.put(compressedBody);
             } else {
                 buffer.put("content-length: ".getBytes());
-                buffer.put(String.valueOf(buffer.limit()).getBytes());
+                buffer.put(String.valueOf(buffer.position()).getBytes());
                 buffer.put("\r\n\r\n".getBytes());
                 buffer.put(this.buffer);
             }

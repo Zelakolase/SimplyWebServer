@@ -17,6 +17,7 @@ public class IO {
             return Files.readAllBytes(Paths.get(filename));
         } catch (Exception e) {
             log.e(e, IO.class.getName(), "read");
+            log.e(Paths.get(filename).toAbsolutePath()+"");
             return null;
         }
     }

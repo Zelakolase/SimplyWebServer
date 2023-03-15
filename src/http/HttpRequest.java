@@ -1,6 +1,8 @@
 package http;
 
 import http.exceptions.HttpRequestException;
+import lib.PathFilter;
+import lib.log;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -39,7 +41,8 @@ public class HttpRequest {
             httpRequestMethod = HttpRequestMethod.CUSTOM;
         }
 
-        this.path = tokens[1];
+        this.path = PathFilter.filter(tokens[1]);
+        log.i(this.path);
 
         int idx = 1;
         for (; idx < lines.length && !lines[idx].isBlank(); ++idx) {

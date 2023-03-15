@@ -127,9 +127,7 @@ public class Server {
                         } catch (ClosedChannelException e) {
                             throw new RuntimeException(e);
                         }
-//                            log.i("concurrent connections exceed the configured maximum");
-
-
+                        // log.i("concurrent connections exceed the configured maximum");
                     } else if (key.isWritable()) {
                         keysIterator.remove();
                         try (SocketChannel socketChannel = (SocketChannel) key.channel()) {
