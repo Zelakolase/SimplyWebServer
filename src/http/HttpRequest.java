@@ -1,6 +1,5 @@
 package http;
 
-import http.config.HttpRequestMethod;
 import http.exceptions.HttpRequestException;
 import lib.log;
 
@@ -14,7 +13,7 @@ import static http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
 public class HttpRequest {
     private final String path;
     private final ByteBuffer buffer;
-    private final HttpRequestMethod httpRequestMethod;
+    private final String httpRequestMethod;
     private final HashMap<String, String> headers = new HashMap<>();
 
     private int bodySize = 0, headerSize = 0;
@@ -29,7 +28,7 @@ public class HttpRequest {
         headerSize += lines[0].length() + 2;
         String[] tokens = lines[0].split("\\s");
 
-        httpRequestMethod = HttpRequestMethod.fromString(tokens[0]);
+        httpRequestMethod = tokens[0];
         this.path = tokens[1];
 
         int idx = 1;
@@ -89,7 +88,7 @@ public class HttpRequest {
         return headers;
     }
 
-    public HttpRequestMethod getHttpRequestMethod() {
+    public String getHttpRequestMethod() {
         return httpRequestMethod;
     }
 }
