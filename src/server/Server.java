@@ -66,9 +66,10 @@ public class Server {
         try (SocketChannel socketChannel = (SocketChannel) handlerArgs.channel) {
             HttpResponse response = handler.apply(((HttpRequest) handlerArgs.keyAttachment.attachment()));
             socketChannel.write(response.getResponse());
-            currentConnections.decrementAndGet();
         } catch (IOException e) {
             throw new RuntimeException(e);
+        } finally {
+            currentConnections.decrementAndGet();
         }
         return null;
     }
@@ -85,13 +86,11 @@ public class Server {
             ByteBuffer buffer = ByteBuffer.allocate(MAX_REQUEST_SIZE_BYTES + 1);
             if (socketChannel.read(buffer) > MAX_REQUEST_SIZE_BYTES) {
                 socketChannel.close();
-                currentConnections.decrementAndGet();
                 throw new IOException("Request too big");
             }
             buffer.flip();
             if (buffer.limit() == 0) {
                 socketChannel.close();
-                currentConnections.decrementAndGet();
                 return null;
             }
 
@@ -106,7 +105,6 @@ public class Server {
                 }
             } catch (HttpRequestException e) {
                 socketChannel.close();
-                currentConnections.decrementAndGet();
                 log.e(getStackTrace(e));
                 return null;
             }
@@ -117,7 +115,6 @@ public class Server {
                     int contentLength = Integer.parseInt(httpRequest.getHeaders().get("content-length"), 10);
                     if (contentLength > MAX_REQUEST_SIZE_BYTES - httpRequest.getHeaderSize()) {
                         socketChannel.close();
-                        currentConnections.decrementAndGet();
                         throw new IOException("Request too big");
                     }
 
@@ -128,7 +125,6 @@ public class Server {
                 }
             } catch (NumberFormatException e) {
                 socketChannel.close();
-                currentConnections.decrementAndGet();
                 log.e(getStackTrace(e));
                 return null;
             }
@@ -141,6 +137,8 @@ public class Server {
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
+        } finally {
+            currentConnections.decrementAndGet();
         }
         return null;
     }
