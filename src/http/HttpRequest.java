@@ -1,7 +1,7 @@
 package http;
 
+import http.config.HttpRequestMethod;
 import http.exceptions.HttpRequestException;
-import lib.PathFilter;
 import lib.log;
 
 import java.nio.BufferOverflowException;
@@ -9,7 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 
-import static http.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
+import static http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
 
 public class HttpRequest {
     private final String path;
@@ -29,20 +29,8 @@ public class HttpRequest {
         headerSize += lines[0].length() + 2;
         String[] tokens = lines[0].split("\\s");
 
-        if (tokens[0].equalsIgnoreCase("get")) {
-            httpRequestMethod = HttpRequestMethod.GET;
-        } else if (tokens[0].equalsIgnoreCase("post")) {
-            httpRequestMethod = HttpRequestMethod.POST;
-        } else if (tokens[0].equalsIgnoreCase("delete")) {
-            httpRequestMethod = HttpRequestMethod.DELETE;
-        } else if (tokens[0].equalsIgnoreCase("update")) {
-            httpRequestMethod = HttpRequestMethod.UPDATE;
-        } else {
-            httpRequestMethod = HttpRequestMethod.CUSTOM;
-        }
-
-        this.path = PathFilter.filter(tokens[1]);
-        log.i(this.path);
+        httpRequestMethod = HttpRequestMethod.fromString(tokens[0]);
+        this.path = tokens[1];
 
         int idx = 1;
         for (; idx < lines.length && !lines[idx].isBlank(); ++idx) {
