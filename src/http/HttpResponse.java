@@ -10,7 +10,7 @@ public abstract class HttpResponse {
     public final HashMap<String, String> headers = new HashMap<>();
 
     protected HttpStatusCode httpStatusCode;
-    protected HttpContentType httpContentType;
+    protected String httpContentType;
     protected boolean isFile = false;
     protected boolean useGzip = false;
     protected ByteBuffer buffer = null;

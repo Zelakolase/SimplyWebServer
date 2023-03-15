@@ -14,7 +14,7 @@ import static lib.Network.compress;
 
 public class HttpBufferResponse extends HttpResponse {
     private final ByteBuffer buffer = ByteBuffer.allocate(MAX_RESPONSE_SIZE_BYTES);
-    private final HttpContentType httpContentType = HttpContentType.TEXT_HTML;
+    private final String httpContentType = "text/html";
 
     public HttpBufferResponse() {
         this(HttpStatusCode.OK);
@@ -85,7 +85,7 @@ public class HttpBufferResponse extends HttpResponse {
         return buffer;
     }
 
-    public HttpContentType getHttpContentType() {
+    public String getHttpContentType() {
         return httpContentType;
     }
 

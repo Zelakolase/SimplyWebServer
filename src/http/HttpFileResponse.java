@@ -22,11 +22,11 @@ public class HttpFileResponse extends HttpResponse {
     private final Path filePath;
 
     public HttpFileResponse(String filePathString) throws IOException, HttpResponseException {
-        this(filePathString, HttpStatusCode.OK, HttpContentType.TEXT_HTML, false, new HashMap<>());
+        this(filePathString, HttpStatusCode.OK, "text/html", false, new HashMap<>());
     }
 
 
-    public HttpFileResponse(String filePathString, HttpStatusCode httpStatusCode, HttpContentType httpContentType,
+    public HttpFileResponse(String filePathString, HttpStatusCode httpStatusCode, String httpContentType,
                             boolean useGzip,
                             HashMap<Object, Object> headers) throws IOException, HttpResponseException {
         this.filePath = Paths.get(ROOT_DIR, filePathString);
@@ -37,13 +37,16 @@ public class HttpFileResponse extends HttpResponse {
         }
 
         this.httpStatusCode = httpStatusCode;
-        this.httpContentType = HttpContentType.fromString(Files.probeContentType(filePath));
+        String[] tempSplit = filePathString.split("\\.");
+        this.httpContentType = MIME.get(new HashMap<>() {{
+            put("extension", tempSplit[tempSplit.length - 1]);
+        }}, "mime", 1).get(0);
         this.useGzip = useGzip;
 
         headers.forEach((key, value) -> headers.put(key.toString(), value.toString()));
     }
 
-    void setHttpContentType(HttpContentType httpContentType) {
+    void setHttpContentType(String httpContentType) {
         this.httpContentType = httpContentType;
     }
 
