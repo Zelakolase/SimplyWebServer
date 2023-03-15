@@ -94,7 +94,10 @@ public class HttpBufferResponse extends HttpResponse {
     }
 
     public void setBuffer(String buffer) {
-        this.buffer.clear().put(buffer.getBytes());
+        setBuffer(buffer.getBytes());
+    }
+    public void setBuffer(byte[] buffer) {
+        this.buffer.clear().put(buffer);
     }
 
     public void setBuffer(ByteBuffer buffer) {
@@ -102,7 +105,11 @@ public class HttpBufferResponse extends HttpResponse {
     }
 
     public void appendToBuffer(String buffer) {
-        this.buffer.put(buffer.getBytes());
+        appendToBuffer(buffer.getBytes());
+    }
+
+    public void appendToBuffer(byte[] buffer) {
+        this.buffer.put(buffer);
     }
 
     public void appendToBuffer(ByteBuffer buffer) {
