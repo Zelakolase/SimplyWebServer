@@ -3,7 +3,7 @@ package server;
 import http.HttpRequest;
 import http.HttpResponse;
 import http.exceptions.HttpRequestException;
-import lib.SparkDB;
+import io.KeyAttachment;
 import lib.log;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -19,17 +19,17 @@ import java.nio.channels.*;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
-import static http.ServerConfig.*;
+import static http.config.ServerConfig.*;
 
 public class Server {
-
     public final int backlog;
     public final boolean useGzip;
-
-    private final SparkDB MIME = new SparkDB();
     private final Function<HttpRequest, HttpResponse> handler;
+    private final AtomicInteger currentConnections = new AtomicInteger();
+    private final ThreadLocal<Selector> selectorThreadLocal = new ThreadLocal<>();
 
 
     public Server(Function<HttpRequest, HttpResponse> handler) {
@@ -42,20 +42,115 @@ public class Server {
         this.handler = handler;
     }
 
-    private static String getStackTrace(final Throwable throwable) {
+    public static String getStackTrace(final Throwable throwable) {
         final StringWriter sw = new StringWriter();
         final PrintWriter pw = new PrintWriter(sw, true);
         throwable.printStackTrace(pw);
         return sw.getBuffer().toString();
     }
 
-    private void mainLoop(Selector selector, int maxConcurrentConnections) {
-        int currentConnections = 0;
+    private void init(Selector selector, ServerSocketChannel serverSocketChannel) {
+        selectorThreadLocal.set(selector);
+        try {
+            serverSocketChannel.configureBlocking(false);
+            serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
+            serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEPORT, true);
+            serverSocketChannel.bind(new InetSocketAddress(PORT), backlog);
+            serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Void handleWriteRequest(KeyAttachment.HandlerArgs handlerArgs) {
+        try (SocketChannel socketChannel = (SocketChannel) handlerArgs.channel) {
+            HttpResponse response = handler.apply(((HttpRequest) handlerArgs.keyAttachment.attachment()));
+            socketChannel.write(response.getResponse());
+            currentConnections.decrementAndGet();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return null;
+    }
+
+    private Void handleReadRequest(KeyAttachment.HandlerArgs handlerArgs) {
+        SocketChannel socketChannel = (SocketChannel) handlerArgs.channel;
+        try {
+            socketChannel.socket()
+                         .setOption(StandardSocketOptions.SO_KEEPALIVE, KEEP_ALIVE)
+                         .setOption(StandardSocketOptions.TCP_NODELAY, TCP_NODELAY)
+                         .setOption(StandardSocketOptions.SO_RCVBUF, MAX_REQUEST_SIZE_BYTES)
+                         .setOption(StandardSocketOptions.SO_SNDBUF, MAX_RESPONSE_SIZE_BYTES);
+
+            ByteBuffer buffer = ByteBuffer.allocate(MAX_REQUEST_SIZE_BYTES + 1);
+            if (socketChannel.read(buffer) > MAX_REQUEST_SIZE_BYTES) {
+                socketChannel.close();
+                currentConnections.decrementAndGet();
+                throw new IOException("Request too big");
+            }
+            buffer.flip();
+            if (buffer.limit() == 0) {
+                socketChannel.close();
+                currentConnections.decrementAndGet();
+                return null;
+            }
+
+
+            HttpRequest httpRequest;
+            try {
+                if (handlerArgs.keyAttachment.attachment() != null) {
+                    httpRequest = (HttpRequest) handlerArgs.keyAttachment.attachment();
+                    httpRequest.appendBuffer(buffer);
+                } else {
+                    httpRequest = new HttpRequest(buffer);
+                }
+            } catch (HttpRequestException e) {
+                socketChannel.close();
+                currentConnections.decrementAndGet();
+                log.e(getStackTrace(e));
+                return null;
+            }
+            handlerArgs.keyAttachment.attach(httpRequest);
+
+            try {
+                if (httpRequest.getHeaders().containsKey("content-length")) {
+                    int contentLength = Integer.parseInt(httpRequest.getHeaders().get("content-length"), 10);
+                    if (contentLength > MAX_REQUEST_SIZE_BYTES - httpRequest.getHeaderSize()) {
+                        socketChannel.close();
+                        currentConnections.decrementAndGet();
+                        throw new IOException("Request too big");
+                    }
+
+                    if (httpRequest.getBodySize() < contentLength) {
+                        socketChannel.register(handlerArgs.selector, SelectionKey.OP_READ, handlerArgs.keyAttachment);
+                        return null;
+                    }
+                }
+            } catch (NumberFormatException e) {
+                socketChannel.close();
+                currentConnections.decrementAndGet();
+                log.e(getStackTrace(e));
+                return null;
+            }
+
+            try {
+                handlerArgs.keyAttachment.setHandler(this::handleWriteRequest);
+                socketChannel.register(handlerArgs.selector, SelectionKey.OP_WRITE, handlerArgs.keyAttachment);
+            } catch (ClosedChannelException e) {
+                throw new RuntimeException(e);
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return null;
+    }
+
+    private void mainLoop() {
 
         while (true) {
             try {
-                selector.select();
-                Iterator<SelectionKey> keysIterator = selector.selectedKeys().iterator();
+                selectorThreadLocal.get().select();
+                Iterator<SelectionKey> keysIterator = selectorThreadLocal.get().selectedKeys().iterator();
 
                 while (keysIterator.hasNext()) {
                     SelectionKey key = keysIterator.next();
@@ -65,77 +160,27 @@ public class Server {
                     } else if (key.isAcceptable()) {
                         ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
                         SocketChannel socketChannel = serverSocketChannel.accept();
+
                         if (socketChannel != null) {
-                            if (++currentConnections > maxConcurrentConnections) {
+                            if (currentConnections.incrementAndGet() > MAX_CONCURRENT_CONNECTIONS) {
                                 socketChannel.close();
-                                --currentConnections;
+                                currentConnections.decrementAndGet();
                                 log.e("maximum concurrent connections reached");
                             }
 
                             socketChannel.configureBlocking(false);
-                            socketChannel.register(selector, SelectionKey.OP_READ);
+                            KeyAttachment keyAttachment = new KeyAttachment(socketChannel, selectorThreadLocal.get(),
+                                    this::handleReadRequest);
+                            socketChannel.register(selectorThreadLocal.get(), SelectionKey.OP_READ, keyAttachment);
                         }
                     } else if (key.isReadable()) {
                         keysIterator.remove();
-                        SocketChannel socketChannel = (SocketChannel) key.channel();
-                        socketChannel.socket().setOption(StandardSocketOptions.SO_KEEPALIVE, KEEP_ALIVE).setOption(StandardSocketOptions.TCP_NODELAY, TCP_NODELAY).setOption(StandardSocketOptions.SO_RCVBUF, MAX_REQUEST_SIZE_BYTES).setOption(StandardSocketOptions.SO_SNDBUF, MAX_RESPONSE_SIZE_BYTES);
-
-                        ByteBuffer buffer = ByteBuffer.allocate(MAX_REQUEST_SIZE_BYTES + 1);
-                        if (socketChannel.read(buffer) > MAX_REQUEST_SIZE_BYTES) {
-                            socketChannel.close();
-                            --currentConnections;
-                            throw new IOException("Request too big");
-                        }
-                        buffer.flip();
-                        if (buffer.limit() == 0) {
-                            socketChannel.close();
-                            --currentConnections;
-                            continue;
-                        }
-
-                        HttpRequest httpRequest;
-                        try {
-                            if (key.attachment() != null) {
-                                httpRequest = (HttpRequest) key.attachment();
-                                httpRequest.appendBuffer(buffer);
-                            } else {
-                                httpRequest = new HttpRequest(buffer);
-                            }
-                        } catch (HttpRequestException exception) {
-                            socketChannel.close();
-                            --currentConnections;
-                            log.e(getStackTrace(exception));
-                            continue;
-                        }
-
-                        if (httpRequest.getHeaders().containsKey("content-length")) {
-                            int contentLength = Integer.parseInt(httpRequest.getHeaders().get("content-length"), 10);
-                            if (contentLength > MAX_REQUEST_SIZE_BYTES - httpRequest.getHeaderSize()) {
-                                socketChannel.close();
-                                --currentConnections;
-                                throw new IOException("Request too big");
-                            }
-
-                            if (httpRequest.getBodySize() < contentLength) {
-                                socketChannel.register(selector, SelectionKey.OP_READ, httpRequest);
-                                continue;
-                            }
-                        }
-
-                        try {
-                            socketChannel.register(selector, SelectionKey.OP_WRITE, handler.apply(httpRequest));
-                        } catch (ClosedChannelException e) {
-                            throw new RuntimeException(e);
-                        }
-//                            log.i("concurrent connections exceed the configured maximum");
-
-
+                        KeyAttachment keyAttachment = (KeyAttachment) key.attachment();
+                        keyAttachment.handle();
                     } else if (key.isWritable()) {
                         keysIterator.remove();
-                        try (SocketChannel socketChannel = (SocketChannel) key.channel()) {
-                            socketChannel.write(((HttpResponse) key.attachment()).getHttpResponseBuffer(useGzip));
-                            --currentConnections;
-                        }
+                        KeyAttachment keyAttachment = (KeyAttachment) key.attachment();
+                        keyAttachment.handle();
                     }
 
 
@@ -147,7 +192,6 @@ public class Server {
     }
 
     public void startHttp() throws Exception {
-        loadMIME();
         final int nCores = Runtime.getRuntime().availableProcessors();
         final Thread[] threads = new Thread[nCores];
 
@@ -155,12 +199,8 @@ public class Server {
         for (int i = 0; i < nCores; ++i) {
             threads[i] = new Thread(() -> {
                 try (Selector selector = Selector.open(); ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
-                    serverSocketChannel.configureBlocking(false);
-                    serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
-                    serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEPORT, true);
-                    serverSocketChannel.bind(new InetSocketAddress(PORT), backlog);
-                    serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-                    mainLoop(selector, MAX_CONCURRENT_CONNECTIONS / nCores);
+                    init(selector, serverSocketChannel);
+                    mainLoop();
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
@@ -172,10 +212,6 @@ public class Server {
             thread.join();
     }
 
-    private void loadMIME() throws Exception {
-        MIME.readFromFile(MIME_DB);
-    }
-
     public void startHttps(String KeyStorePath, String KeyStorePassword) throws Exception {
         startHttps(KeyStorePath, KeyStorePassword, "TLSv1.3", "JKS", "SunX509");
     }
@@ -185,27 +221,28 @@ public class Server {
         startHttps(KeyStorePath, KeyStorePassword, TLSVersion, "JKS", "SunX509");
     }
 
-    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType) throws Exception {
+    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion,
+                           String KeyStoreType) throws Exception {
         startHttps(KeyStorePath, KeyStorePassword, TLSVersion, KeyStoreType, "SunX509");
     }
 
-    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType, String KeyManagerFactoryType) throws Exception {
-        System.setProperty("jdk.tls.ephemeralDHKeySize", "2048"); // Mitigation against LOGJAM TLS Attack
-        System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true"); // Mitigation against Client Renegotiation Attack
-        loadMIME();
+    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType,
+                           String KeyManagerFactoryType) throws Exception {
+        System.setProperty("jdk.tls.ephemeralDHKeySize", "2048");                   // LOGJAM TLS Attack
+        System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true");   // Client Renegotiation Attack
         final int nCores = Runtime.getRuntime().availableProcessors();
         final Thread[] threads = new Thread[nCores];
 
         log.s("Server running at :" + PORT);
         for (int i = 0; i < nCores; ++i) {
             threads[i] = new Thread(() -> {
-                try (Selector selector = Selector.open(); ServerSocketChannel serverSocketChannel = getSSLContext(Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType, KeyManagerFactoryType).getServerSocketFactory().createServerSocket(PORT, backlog).getChannel()) {
-                    serverSocketChannel.configureBlocking(false);
-                    serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEADDR, true);
-                    serverSocketChannel.setOption(StandardSocketOptions.SO_REUSEPORT, true);
-                    serverSocketChannel.bind(new InetSocketAddress(PORT), backlog);
-                    serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-                    mainLoop(selector, MAX_CONCURRENT_CONNECTIONS / nCores);
+                try (Selector selector = Selector.open(); ServerSocketChannel serverSocketChannel = getSSLContext(
+                        Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType,
+                        KeyManagerFactoryType).getServerSocketFactory()
+                                              .createServerSocket(PORT, backlog)
+                                              .getChannel()) {
+                    init(selector, serverSocketChannel);
+                    mainLoop();
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -217,7 +254,8 @@ public class Server {
             thread.join();
     }
 
-    private SSLContext getSSLContext(Path keyStorePath, char[] keyStorePass, String TLSVersion, String KeyStoreType, String KeyManagerFactoryType) throws Exception {
+    private SSLContext getSSLContext(Path keyStorePath, char[] keyStorePass, String TLSVersion, String KeyStoreType,
+                                     String KeyManagerFactoryType) throws Exception {
         var keyStore = KeyStore.getInstance(KeyStoreType);
         keyStore.load(new FileInputStream(keyStorePath.toFile()), keyStorePass);
         var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactoryType);

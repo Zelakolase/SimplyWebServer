@@ -1,4 +1,4 @@
-package http;
+package http.config;
 
 public interface ServerConfig {
     int PORT = 8080;

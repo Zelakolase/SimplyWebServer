@@ -1,6 +1,8 @@
 package test;
 
 import http.*;
+import http.config.HttpRequestMethod;
+import http.config.HttpStatusCode;
 import lib.JSON;
 import server.Server;
 
@@ -12,33 +14,31 @@ public class SimpleLogin {
     public static String username = "morad";
     public static String password = "morad";
 
-    private static HttpResponse handle(HttpRequest httpRequest) {
-        HttpResponse httpResponse = new HttpResponse();
+    private static HttpBufferResponse handle(HttpRequest httpRequest) {
+        HttpBufferResponse httpBufferResponse = new HttpBufferResponse();
 
         if (httpRequest.getPath().equals("/index.html")) {
-            httpResponse.setHttpContentType(HttpContentType.TEXT_HTML);
-            httpResponse.getBuffer().put(HTMLCode.getBytes());
-            httpResponse.setHttpStatusCode(HttpStatusCode.OK);
+            httpBufferResponse.setBuffer(HTMLCode);
+            httpBufferResponse.setHttpStatusCode(HttpStatusCode.OK);
         } else if (httpRequest.getPath().equals("/api/login") && httpRequest.getHttpRequestMethod() == HttpRequestMethod.POST) {
-            httpResponse.setHttpContentType(HttpContentType.APPLICATION_JSON);
             HashMap<String, String> LoginInfo = JSON.QHM(httpRequest.getBody());
             if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
-                httpResponse.setBuffer("{\"success\": \"false\"}");
+                httpBufferResponse.setBuffer("{\"success\": \"false\"}");
             } else {
                 if (LoginInfo.get("username").equals(username) && LoginInfo.get("password").equals(password)) {
-                    httpResponse.setBuffer("{\"success\": \"true\"}");
+                    httpBufferResponse.setBuffer("{\"success\": \"true\"}");
                 } else {
-                    httpResponse.setBuffer("{\"success\": \"false\"}");
+                    httpBufferResponse.setBuffer("{\"success\": \"false\"}");
                 }
             }
         } else {
-            httpResponse.setBuffer("{\"success\": \"false\", \"error\": \"file not found\"}");
-            httpResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
+            httpBufferResponse.setBuffer("{\"success\": \"false\", \"error\": \"file not found\"}");
+            httpBufferResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
         }
         // We can add custom headers changes for each request
-        httpResponse.addHeader("Rand-Int", new Random().nextInt(10));
+        httpBufferResponse.headers.put("Rand-Int", String.valueOf(new Random().nextInt(10)));
         
-        return httpResponse;
+        return httpBufferResponse;
     }
 
     public static void main(String[] args) throws Exception {
