@@ -4,7 +4,6 @@ import http.HttpRequest;
 import http.HttpResponse;
 import http.exceptions.HttpRequestException;
 import io.KeyAttachment;
-import lib.IO;
 import lib.log;
 
 import javax.net.ssl.KeyManagerFactory;

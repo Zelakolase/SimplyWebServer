@@ -4,7 +4,6 @@ import http.HttpBufferResponse;
 import http.HttpRequest;
 import http.config.HttpStatusCode;
 import lib.JSON;
-import lib.log;
 import server.Server;
 
 import java.util.HashMap;
@@ -25,8 +24,6 @@ public class SimpleLogin {
         } else if (httpRequest.getPath().equals("/api/login") &&
                 httpRequest.getHttpRequestMethod().equalsIgnoreCase("post")) {
             HashMap<String, String> LoginInfo = JSON.QHM(httpRequest.getBodyAsString());
-            log.i(LoginInfo + "");
-            log.i(httpRequest.getBodyAsString());
             if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
                 httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
                     put("success", "false");
