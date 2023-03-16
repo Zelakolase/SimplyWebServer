@@ -25,9 +25,9 @@ public class SimpleLogin {
             httpBufferResponse.setHttpStatusCode(HttpStatusCode.OK);
         } else if (httpRequest.getPath().equals("/api/login") &&
                 httpRequest.getHttpRequestMethod().equalsIgnoreCase("post")) {
-            HashMap<String, String> LoginInfo = JSON.QHM(new String(httpRequest.getBody()));
+            HashMap<String, String> LoginInfo = JSON.QHM(httpRequest.getBodyAsString());
             log.i(LoginInfo + "");
-            log.i(Arrays.toString(new String(httpRequest.getBody()).getBytes()));
+            log.i(httpRequest.getBodyAsString());
             if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
                 httpBufferResponse.setBody("{\"success\": \"false\"}");
             } else {

@@ -15,7 +15,7 @@ public class HttpRequest {
     private final String httpRequestMethod;
     private final HashMap<String, String> headers = new HashMap<>();
 
-    private int bodySize = 0, headerSize = 0;
+    private int headerSize = 0;
 
     public HttpRequest(ByteBuffer rawRequest) throws HttpRequestException {
         String request = new String(rawRequest.array(), 0, rawRequest.limit(), StandardCharsets.US_ASCII);
@@ -28,8 +28,7 @@ public class HttpRequest {
         String[] tokens = lines[0].split("\\s");
 
         httpRequestMethod = tokens[0];
-        String tempPath = tokens[1].replaceAll("\\.\\.", "").replaceAll("//", "/");
-        this.path = tempPath.endsWith("/") ? tempPath + "index.html" : tempPath;
+        path = tokens[1];
 
         int idx = 1;
         for (; idx < lines.length && !lines[idx].isBlank(); ++idx) {
@@ -50,7 +49,6 @@ public class HttpRequest {
                 buffer.put(lines[idx++].getBytes());
             }
             buffer.flip();
-            this.bodySize = buffer.limit();
             this.body = buffer;
         } catch (BufferOverflowException ignored) {
             throw new HttpRequestException("http request too big");
@@ -58,22 +56,38 @@ public class HttpRequest {
     }
 
     public void appendBuffer(ByteBuffer buffer) {
-        this.body.limit(bodySize);
-        this.body.put(buffer);
-        this.body.flip();
-        bodySize = this.body.limit();
+        body.position(body.limit());
+        body.limit(body.capacity());
+        body.put(buffer);
+        body.flip();
+    }
+
+    public void appendBuffer(byte buffer) {
+        body.position(body.limit());
+        body.limit(body.capacity());
+        body.put(buffer);
+        body.flip();
     }
 
     public String getPath() {
         return path;
     }
 
-    public byte[] getBody() {
-        return body.array();
+    public ByteBuffer getBody() {
+        return body;
+    }
+
+    public String getBodyAsString() { return new String(body.array(), 0, body.limit()); }
+
+    public byte[] getBodyAsByteArray() {
+        byte[] array = new byte[body.limit()];
+        body.get(array);
+        body.flip();
+        return array;
     }
 
     public int getBodySize() {
-        return bodySize;
+        return body.limit();
     }
 
     public int getHeaderSize() {
