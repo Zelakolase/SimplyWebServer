@@ -12,8 +12,8 @@ import static http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
 import static lib.Network.compress;
 
 public class HttpBufferResponse extends HttpResponse {
-    private boolean hasResponse = true;
     private final ByteBuffer body = ByteBuffer.allocate(MAX_RESPONSE_SIZE_BYTES);
+    private boolean hasResponse = true;
 
     public HttpBufferResponse() {
         this(HttpStatusCode.OK);
@@ -96,7 +96,11 @@ public class HttpBufferResponse extends HttpResponse {
     }
 
     public void setBody(String body) {
-        this.body.clear().put(body.getBytes());
+        setBody(body.getBytes());
+    }
+
+    public void setBody(byte[] body) {
+        this.body.clear().put(body);
     }
 
     public void setBuffer(ByteBuffer buffer) {
@@ -104,7 +108,11 @@ public class HttpBufferResponse extends HttpResponse {
     }
 
     public void appendToBuffer(String buffer) {
-        this.body.put(buffer.getBytes());
+        appendToBuffer(buffer.getBytes());
+    }
+
+    public void appendToBuffer(byte[] buffer) {
+        this.body.put(buffer);
     }
 
     public void appendToBuffer(ByteBuffer buffer) {

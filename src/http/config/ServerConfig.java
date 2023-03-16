@@ -1,5 +1,7 @@
 package http.config;
 
+import lib.SparkDB;
+
 public interface ServerConfig {
     int PORT = 8080;
     int MAX_REQUEST_SIZE_BYTES = 2048;
@@ -12,6 +14,7 @@ public interface ServerConfig {
 
     String ROOT_DIR = "www";
     String MIME_DB = "src/etc/MIME.db";
+    SparkDB MIME = new SparkDB(MIME_DB);
 
     String HTTP_PROTO_VERSION = "HTTP/1.1";
 }

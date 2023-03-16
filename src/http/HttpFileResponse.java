@@ -2,7 +2,6 @@ package http;
 
 import http.config.HttpStatusCode;
 import http.exceptions.HttpResponseException;
-import lib.IO;
 import lib.log;
 
 import java.io.IOException;
@@ -22,8 +21,8 @@ public class HttpFileResponse extends HttpResponse {
     private final FileChannel fileChannel;
     private final Path filePath;
     private final ByteBuffer body = ByteBuffer.allocateDirect(MAX_FILE_CHUNK_SIZE_BYTES);
+    private final boolean hasResponse = true;
     private boolean isHeaderSent = false;
-    private boolean hasResponse = true;
 
 
     public HttpFileResponse(String filePathString) throws IOException, HttpResponseException {
@@ -43,8 +42,16 @@ public class HttpFileResponse extends HttpResponse {
         this.httpStatusCode = httpStatusCode;
 
         if (httpContentType == null) {
-            String contentType = Files.probeContentType(filePath);
-            this.httpContentType = contentType == null ? "text/html" : contentType;
+            try {
+                String[] tempSplit = filePathString.split("\\.");
+                this.httpContentType = MIME.get(new HashMap<>() {{
+                    put("extension", tempSplit[tempSplit.length - 1]);
+                }}, "mime", 1).get(0);
+            } catch (Exception e) {
+                log.e("failed to find mime in database");
+                String contentType = Files.probeContentType(filePath);
+                this.httpContentType = contentType == null ? "text/html" : contentType;
+            }
         }
 
         this.useGzip = useGzip;
@@ -64,8 +71,7 @@ public class HttpFileResponse extends HttpResponse {
     @Override
     public boolean hasResponse() {
         try {
-            if (!hasResponse)
-                fileChannel.close();
+            if (!hasResponse) fileChannel.close();
         } catch (IOException e) {
             return false;
         }

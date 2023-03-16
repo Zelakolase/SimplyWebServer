@@ -5,11 +5,9 @@ import http.HttpRequest;
 import http.HttpBufferResponse;
 import http.HttpResponse;
 import http.config.HttpStatusCode;
-import http.exceptions.HttpResponseException;
 import lib.log;
 import server.Server;
 
-import java.io.IOException;
 import java.util.Random;
 
 public class ServeFiles {
@@ -17,10 +15,12 @@ public class ServeFiles {
         HttpResponse httpResponse;
         try {
             httpResponse = new HttpFileResponse(httpRequest.getPath());
-        } catch (IOException | HttpResponseException e) {
+        } catch (Exception e) {
             log.e(Server.getStackTrace(e));
             httpResponse = new HttpBufferResponse(HttpStatusCode.INTERNAL_SERVER_ERROR);
         }
+
+        // We can add custom headers changes for each request
         httpResponse.headers.put("Rand-Int", String.valueOf(new Random().nextInt(10)));
         
         return httpResponse;

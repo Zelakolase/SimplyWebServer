@@ -31,6 +31,14 @@ public class SparkDB {
      */
     public int num_header = 0;
 
+    public SparkDB(String filepath) {
+        try {
+        this.readFromFile(filepath);
+        }catch(Exception E) {
+            log.e(E, "SparkDB", "Constructor");
+        }
+    }
+
     /**
      * Create a database in memory
      *

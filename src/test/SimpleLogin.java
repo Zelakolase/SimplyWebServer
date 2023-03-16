@@ -4,8 +4,10 @@ import http.HttpBufferResponse;
 import http.HttpRequest;
 import http.config.HttpStatusCode;
 import lib.JSON;
+import lib.log;
 import server.Server;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -23,7 +25,9 @@ public class SimpleLogin {
             httpBufferResponse.setHttpStatusCode(HttpStatusCode.OK);
         } else if (httpRequest.getPath().equals("/api/login") &&
                 httpRequest.getHttpRequestMethod().equalsIgnoreCase("post")) {
-            HashMap<String, String> LoginInfo = JSON.QHM(httpRequest.getBody());
+            HashMap<String, String> LoginInfo = JSON.QHM(new String(httpRequest.getBody()));
+            log.i(LoginInfo + "");
+            log.i(Arrays.toString(new String(httpRequest.getBody()).getBytes()));
             if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
                 httpBufferResponse.setBody("{\"success\": \"false\"}");
             } else {
@@ -35,6 +39,7 @@ public class SimpleLogin {
             }
         } else {
             httpBufferResponse.setBody("{\"success\": \"false\", \"error\": \"file not found\"}");
+
             httpBufferResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
         }
         // We can add custom headers changes for each request
