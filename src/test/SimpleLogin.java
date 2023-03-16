@@ -7,7 +7,6 @@ import lib.JSON;
 import lib.log;
 import server.Server;
 
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -29,16 +28,25 @@ public class SimpleLogin {
             log.i(LoginInfo + "");
             log.i(httpRequest.getBodyAsString());
             if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
-                httpBufferResponse.setBody("{\"success\": \"false\"}");
+                httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                    put("success", "false");
+                }}));
             } else {
                 if (LoginInfo.get("username").equals(username) && LoginInfo.get("password").equals(password)) {
-                    httpBufferResponse.setBody("{\"success\": \"true\"}");
+                    httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                        put("success", "true");
+                    }}));
                 } else {
-                    httpBufferResponse.setBody("{\"success\": \"false\"}");
+                    httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                        put("success", "false");
+                    }}));
                 }
             }
         } else {
-            httpBufferResponse.setBody("{\"success\": \"false\", \"error\": \"file not found\"}");
+            httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                put("success", "false");
+                put("error", "file not found");
+            }}));
 
             httpBufferResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
         }
