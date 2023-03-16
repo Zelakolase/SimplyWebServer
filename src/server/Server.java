@@ -4,6 +4,7 @@ import http.HttpRequest;
 import http.HttpResponse;
 import http.exceptions.HttpRequestException;
 import io.KeyAttachment;
+import lib.IO;
 import lib.log;
 
 import javax.net.ssl.KeyManagerFactory;
@@ -63,11 +64,35 @@ public class Server {
     }
 
     private Void handleWriteRequest(KeyAttachment.HandlerArgs handlerArgs) {
-        try (SocketChannel socketChannel = (SocketChannel) handlerArgs.channel) {
-            HttpResponse response = handler.apply(((HttpRequest) handlerArgs.keyAttachment.attachment()));
-            socketChannel.write(response.getResponse());
+        SocketChannel socketChannel = (SocketChannel) handlerArgs.channel;
+        Object attachment = handlerArgs.keyAttachment.attachment();
+
+        try {
+            HttpResponse response;
+            if (attachment instanceof HttpRequest) {
+                response = handler.apply(((HttpRequest) handlerArgs.keyAttachment.attachment()));
+            } else if (attachment instanceof HttpResponse) {
+                response = (HttpResponse) attachment;
+            } else {
+                socketChannel.close();
+                return null;
+            }
+
+            if (response.hasResponse()) {
+                try {
+                    socketChannel.write(response.getResponse());
+                    handlerArgs.keyAttachment.attach(response);
+                    socketChannel.register(handlerArgs.selector, SelectionKey.OP_WRITE, handlerArgs.keyAttachment);
+                    currentConnections.incrementAndGet();
+                } catch (Exception e) {
+                    log.e(getStackTrace(e));
+                    socketChannel.close();
+                }
+            } else {
+                socketChannel.close();
+            }
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            log.e(getStackTrace(e));
         } finally {
             currentConnections.decrementAndGet();
         }
@@ -132,6 +157,7 @@ public class Server {
             try {
                 handlerArgs.keyAttachment.setHandler(this::handleWriteRequest);
                 socketChannel.register(handlerArgs.selector, SelectionKey.OP_WRITE, handlerArgs.keyAttachment);
+                currentConnections.incrementAndGet();
             } catch (ClosedChannelException e) {
                 throw new RuntimeException(e);
             }

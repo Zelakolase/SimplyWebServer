@@ -8,84 +8,86 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 
-import static http.config.ServerConfig.HTTP_PROTO_VERSION;
 import static http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
 import static lib.Network.compress;
 
 public class HttpBufferResponse extends HttpResponse {
-    private final ByteBuffer buffer = ByteBuffer.allocate(MAX_RESPONSE_SIZE_BYTES);
-    private final HttpContentType httpContentType = HttpContentType.TEXT_HTML;
+    private boolean hasResponse = true;
+    private final ByteBuffer body = ByteBuffer.allocate(MAX_RESPONSE_SIZE_BYTES);
 
     public HttpBufferResponse() {
         this(HttpStatusCode.OK);
     }
 
     public HttpBufferResponse(HttpStatusCode httpStatusCode) {
-        this(httpStatusCode, false);
+        this(httpStatusCode, "text/html");
     }
 
-    public HttpBufferResponse(HttpStatusCode httpStatusCode, boolean useGzip) {
-        this(httpStatusCode, useGzip, new HashMap<>());
+    public HttpBufferResponse(HttpStatusCode httpStatusCode, String httpContentType) {
+        this(httpStatusCode, httpContentType, false);
     }
 
-    public HttpBufferResponse(HttpStatusCode httpStatusCode, boolean useGzip, HashMap<Object, Object> headers) {
+    public HttpBufferResponse(HttpStatusCode httpStatusCode, String httpContentType, boolean useGzip) {
+        this(httpStatusCode, httpContentType, useGzip, new HashMap<>());
+    }
+
+    public HttpBufferResponse(HttpStatusCode httpStatusCode, String httpContentType, boolean useGzip,
+                              HashMap<Object, Object> headers) {
         this.httpStatusCode = httpStatusCode;
-        this.isFile = false;
         this.useGzip = useGzip;
+        this.httpContentType = httpContentType;
         headers.forEach((key, value) -> headers.put(key.toString(), value.toString()));
     }
 
     @Override
-    public ByteBuffer getResponse() {
-        ByteBuffer buffer = ByteBuffer.allocateDirect(MAX_RESPONSE_SIZE_BYTES);
-        buffer.put(HTTP_PROTO_VERSION.getBytes());
-        buffer.put((byte) ' ');
-        buffer.put(String.valueOf(httpStatusCode.getHtmlCode()).getBytes());
-        buffer.put((byte) ' ');
-        buffer.put(httpStatusCode.toString().getBytes());
-        buffer.put("\r\n".getBytes());
-        headers.forEach((key, value) -> {
-            buffer.put(key.toLowerCase().getBytes());
-            buffer.put(": ".getBytes());
-            buffer.put(value.toLowerCase().getBytes());
-            buffer.put("\r\n".getBytes());
-        });
-        buffer.put("content-type: ".getBytes());
-        buffer.put(this.httpContentType.toString().getBytes());
-        buffer.put("\r\n".getBytes());
+    public boolean isFileResponse() {
+        return false;
+    }
 
-        this.buffer.flip();
+    @Override
+    public boolean hasResponse() {
+        boolean temp = hasResponse;
+        hasResponse = false;
+        return temp;
+    }
+
+    @Override
+    public ByteBuffer getResponse() throws BufferOverflowException {
+        ByteBuffer response = ByteBuffer.allocate(MAX_RESPONSE_SIZE_BYTES);
+        setBufferWithHeader(response, httpStatusCode, httpContentType, headers);
+        this.body.flip();
         try {
             if (useGzip) {
-                ByteBuffer compressedBody = compress(this.buffer);
-                buffer.put("content-encoding: gzip\r\n".getBytes());
-                buffer.put("content-length: ".getBytes());
-                buffer.put(String.valueOf(compressedBody.limit()).getBytes());
-                buffer.put("\r\n\r\n".getBytes());
-                buffer.put(compressedBody);
+                ByteBuffer compressedBody = compress(this.body);
+                response.put("content-encoding: gzip\r\n".getBytes());
+                response.put("content-length: ".getBytes());
+                response.put(String.valueOf(compressedBody.limit()).getBytes());
+                response.put("\r\n\r\n".getBytes());
+                response.put(compressedBody);
             } else {
-                buffer.put("content-length: ".getBytes());
-                buffer.put(String.valueOf(this.buffer.limit()).getBytes());
-                buffer.put("\r\n\r\n".getBytes());
-                buffer.put(this.buffer);
+                response.put("content-length: ".getBytes());
+                response.put(String.valueOf(this.body.limit()).getBytes());
+                response.put("\r\n\r\n".getBytes());
+                response.put(this.body);
             }
         } catch (IOException ignored) {
             log.e("failed to compress response body");
-            buffer.put("content-length: ".getBytes());
-            buffer.put(String.valueOf(this.buffer.limit()).getBytes());
-            buffer.put("\r\n\r\n".getBytes());
-            buffer.put(this.buffer);
+            response.put("content-length: ".getBytes());
+            response.put(String.valueOf(this.body.limit()).getBytes());
+            response.put("\r\n\r\n".getBytes());
+            response.put(this.body);
         } catch (BufferOverflowException e) {
             this.httpStatusCode = HttpStatusCode.INTERNAL_SERVER_ERROR;
-            buffer.position(headers.size());
-            return buffer;
+            response.position(headers.size());
+            response.flip();
+            return response;
         }
 
-        buffer.flip();
-        return buffer;
+        response.flip();
+        return response;
     }
 
-    public HttpContentType getHttpContentType() {
+    public String getHttpContentType() {
         return httpContentType;
     }
 
@@ -93,23 +95,19 @@ public class HttpBufferResponse extends HttpResponse {
         return this.httpStatusCode;
     }
 
-    public void setBuffer(String buffer) {
-        this.buffer.clear().put(buffer.getBytes());
+    public void setBody(String body) {
+        this.body.clear().put(body.getBytes());
     }
 
     public void setBuffer(ByteBuffer buffer) {
-        this.buffer.clear().put(buffer);
+        this.body.clear().put(buffer);
     }
 
     public void appendToBuffer(String buffer) {
-        this.buffer.put(buffer.getBytes());
+        this.body.put(buffer.getBytes());
     }
 
     public void appendToBuffer(ByteBuffer buffer) {
-        this.buffer.put(buffer);
-    }
-
-    public int getBufferSize() {
-        return buffer.position();
+        this.body.put(buffer);
     }
 }

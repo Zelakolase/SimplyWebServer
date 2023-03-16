@@ -2,6 +2,7 @@ package http;
 
 import http.config.HttpStatusCode;
 import http.exceptions.HttpResponseException;
+import lib.IO;
 import lib.log;
 
 import java.io.IOException;
@@ -19,94 +20,110 @@ import static lib.Network.compress;
 
 public class HttpFileResponse extends HttpResponse {
     private final FileChannel fileChannel;
-    private final boolean isFile = true;
     private final Path filePath;
+    private final ByteBuffer body = ByteBuffer.allocateDirect(MAX_FILE_CHUNK_SIZE_BYTES);
+    private boolean isHeaderSent = false;
+    private boolean hasResponse = true;
+
 
     public HttpFileResponse(String filePathString) throws IOException, HttpResponseException {
-        this(filePathString, HttpStatusCode.OK, HttpContentType.TEXT_HTML, false, new HashMap<>());
+        this(filePathString, HttpStatusCode.OK, null, false, new HashMap<>());
     }
 
 
-    public HttpFileResponse(String filePathString, HttpStatusCode httpStatusCode, HttpContentType httpContentType,
+    public HttpFileResponse(String filePathString, HttpStatusCode httpStatusCode, String httpContentType,
                             boolean useGzip,
                             HashMap<Object, Object> headers) throws IOException, HttpResponseException {
         this.filePath = Paths.get(ROOT_DIR, filePathString);
         this.fileChannel = FileChannel.open(filePath, StandardOpenOption.READ);
 
-        if (!filePath.startsWith(ROOT_DIR)) {
+        if (!filePath.startsWith(ROOT_DIR))
             throw new HttpResponseException("request file is outside webserver root directory");
-        }
 
         this.httpStatusCode = httpStatusCode;
-        this.httpContentType = HttpContentType.fromString(Files.probeContentType(filePath));
+
+        if (httpContentType == null) {
+            String contentType = Files.probeContentType(filePath);
+            this.httpContentType = contentType == null ? "text/html" : contentType;
+        }
+
         this.useGzip = useGzip;
 
         headers.forEach((key, value) -> headers.put(key.toString(), value.toString()));
     }
 
-    void setHttpContentType(HttpContentType httpContentType) {
+    void setHttpContentType(String httpContentType) {
         this.httpContentType = httpContentType;
     }
 
     @Override
-    public ByteBuffer getResponse() {
-        int fileSize = 0;
+    public boolean isFileResponse() {
+        return true;
+    }
+
+    @Override
+    public boolean hasResponse() {
         try {
-            fileSize = (int) Files.size(filePath);
+            if (!hasResponse)
+                fileChannel.close();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            return false;
         }
-        ByteBuffer fileBuffer = ByteBuffer.allocateDirect(fileSize);
-        ByteBuffer buffer = ByteBuffer.allocateDirect(MAX_RESPONSE_SIZE_BYTES + fileSize);
+        return hasResponse;
+    }
 
+    @Override
+    public ByteBuffer getResponse() throws Exception {
+        long fileSize = 0;
         try {
-            buffer.put(HTTP_PROTO_VERSION.getBytes());
-            buffer.put((byte) ' ');
-            buffer.put(String.valueOf(httpStatusCode.getHtmlCode()).getBytes());
-            buffer.put((byte) ' ');
-            buffer.put(httpStatusCode.toString().getBytes());
-            buffer.put("\r\n".getBytes());
-            headers.forEach((key, value) -> {
-                buffer.put(key.toLowerCase().getBytes());
-                buffer.put(": ".getBytes());
-                buffer.put(value.toLowerCase().getBytes());
-                buffer.put("\r\n".getBytes());
-            });
+            fileSize = Files.size(filePath);
+        } catch (IOException ignored) {
+        }
 
-            if (this.httpContentType != null) {
-                buffer.put("content-type: ".getBytes());
-                buffer.put(this.httpContentType.toString().getBytes());
-                buffer.put("\r\n".getBytes());
-            }
+        ByteBuffer response = ByteBuffer.allocate(MAX_RESPONSE_SIZE_BYTES);
+        if (!isHeaderSent) {
+            isHeaderSent = true;
+            setBufferWithHeader(response, this.httpStatusCode, this.httpContentType, headers);
+        }
 
-            fileChannel.read(fileBuffer);
-            fileBuffer.flip();
+        int maxRead = response.capacity() - response.position();
+        if (maxRead < this.body.capacity()) {
+            this.body.limit(maxRead);
+        }
+        fileChannel.read(this.body);
+        this.body.flip();
+        try {
             if (useGzip) {
-                ByteBuffer compressedBody = compress(fileBuffer);
-                buffer.put("content-encoding: gzip\r\n".getBytes());
-                buffer.put("content-length: ".getBytes());
-                buffer.put(String.valueOf(compressedBody.limit()).getBytes());
-                buffer.put("\r\n\r\n".getBytes());
-                buffer.put(compressedBody);
+                ByteBuffer compressedBody = compress(this.body);
+                response.put("content-encoding: gzip\r\n".getBytes());
+                response.put("\r\n\r\n".getBytes());
+                response.put(compressedBody);
             } else {
-                buffer.put("content-length: ".getBytes());
-                buffer.put(String.valueOf(fileBuffer.limit()).getBytes());
-                buffer.put("\r\n\r\n".getBytes());
-                buffer.put(fileBuffer);
+                if (fileSize != 0) {
+                    response.put("content-length: ".getBytes());
+                    response.put(String.valueOf(fileSize).getBytes());
+                    response.put("\r\n".getBytes());
+                }
+                response.put("\r\n".getBytes());
+                response.put(this.body);
             }
         } catch (IOException ignored) {
             log.e("failed to compress response body");
-            buffer.put("content-length: ".getBytes());
-            buffer.put(String.valueOf(fileBuffer.limit()).getBytes());
-            buffer.put("\r\n\r\n".getBytes());
-            buffer.put(fileBuffer);
+            if (fileSize != 0) {
+                response.put("content-length: ".getBytes());
+                response.put(String.valueOf(fileSize).getBytes());
+                response.put("\r\n".getBytes());
+            }
+            response.put("\r\n".getBytes());
+            response.put(this.body);
         } catch (BufferOverflowException e) {
             this.httpStatusCode = HttpStatusCode.INTERNAL_SERVER_ERROR;
-            buffer.position(headers.size());
-            return buffer;
+            response.position(headers.size());
+            response.flip();
+            return response;
         }
 
-        buffer.flip();
-        return buffer;
+        response.flip();
+        return response;
     }
 }

@@ -19,22 +19,22 @@ public class SimpleLogin {
         HttpBufferResponse httpBufferResponse = new HttpBufferResponse();
 
         if (httpRequest.getPath().equals("/index.html")) {
-            httpBufferResponse.setBuffer(HTMLCode);
+            httpBufferResponse.setBody(HTMLCode);
             httpBufferResponse.setHttpStatusCode(HttpStatusCode.OK);
         } else if (httpRequest.getPath().equals("/api/login") &&
                 httpRequest.getHttpRequestMethod().equalsIgnoreCase("post")) {
             HashMap<String, String> LoginInfo = JSON.QHM(httpRequest.getBody());
             if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
-                httpBufferResponse.setBuffer("{\"success\": \"false\"}");
+                httpBufferResponse.setBody("{\"success\": \"false\"}");
             } else {
                 if (LoginInfo.get("username").equals(username) && LoginInfo.get("password").equals(password)) {
-                    httpBufferResponse.setBuffer("{\"success\": \"true\"}");
+                    httpBufferResponse.setBody("{\"success\": \"true\"}");
                 } else {
-                    httpBufferResponse.setBuffer("{\"success\": \"false\"}");
+                    httpBufferResponse.setBody("{\"success\": \"false\"}");
                 }
             }
         } else {
-            httpBufferResponse.setBuffer("{\"success\": \"false\", \"error\": \"file not found\"}");
+            httpBufferResponse.setBody("{\"success\": \"false\", \"error\": \"file not found\"}");
             httpBufferResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
         }
         // We can add custom headers changes for each request
