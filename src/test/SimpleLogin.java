@@ -6,6 +6,7 @@ import http.config.HttpStatusCode;
 import lib.JSON;
 import server.Server;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Random;
 
@@ -18,38 +19,42 @@ public class SimpleLogin {
     private static HttpBufferResponse handle(HttpRequest httpRequest) {
         HttpBufferResponse httpBufferResponse = new HttpBufferResponse();
 
-        if (httpRequest.getPath().equals("/index.html")) {
-            httpBufferResponse.setBody(HTMLCode);
-            httpBufferResponse.setHttpStatusCode(HttpStatusCode.OK);
-        } else if (httpRequest.getPath().equals("/api/login") &&
-                httpRequest.getHttpRequestMethod().equalsIgnoreCase("post")) {
-            HashMap<String, String> LoginInfo = JSON.QHM(httpRequest.getBodyAsString());
-            if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
-                httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
-                    put("success", "false");
-                }}));
-            } else {
-                if (LoginInfo.get("username").equals(username) && LoginInfo.get("password").equals(password)) {
-                    httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
-                        put("success", "true");
-                    }}));
-                } else {
+
+        try {
+            if (httpRequest.getPath().equals("/index.html")) {
+                httpBufferResponse.setBody(HTMLCode);
+                httpBufferResponse.setHttpStatusCode(HttpStatusCode.OK);
+            } else if (httpRequest.getPath().equals("/api/login") &&
+                    httpRequest.getHttpRequestMethod().equalsIgnoreCase("post")) {
+                HashMap<String, String> LoginInfo = JSON.QHM(httpRequest.getBodyAsString());
+                if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
                     httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
                         put("success", "false");
                     }}));
+                } else {
+                    if (LoginInfo.get("username").equals(username) && LoginInfo.get("password").equals(password)) {
+                        httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                            put("success", "true");
+                        }}));
+                    } else {
+                        httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                            put("success", "false");
+                        }}));
+                    }
                 }
+            } else {
+                httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
+                    put("success", "false");
+                    put("error", "file not found");
+                }}));
+
+                httpBufferResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
             }
-        } else {
-            httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
-                put("success", "false");
-                put("error", "file not found");
-            }}));
-
-            httpBufferResponse.setHttpStatusCode(HttpStatusCode.NOT_FOUND);
+            // We can add custom headers changes for each request
+            httpBufferResponse.addHeader("Rand-Int", String.valueOf(new Random().nextInt(10)));
+        } catch (IOException ignored) {
+            httpBufferResponse.setHttpStatusCode(HttpStatusCode.INTERNAL_SERVER_ERROR);
         }
-        // We can add custom headers changes for each request
-        httpBufferResponse.headers.put("Rand-Int", String.valueOf(new Random().nextInt(10)));
-
         return httpBufferResponse;
     }
 

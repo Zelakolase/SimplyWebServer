@@ -21,7 +21,7 @@ public class ServeFiles {
         }
 
         // We can add custom headers changes for each request
-        httpResponse.headers.put("Rand-Int", String.valueOf(new Random().nextInt(10)));
+        httpResponse.addHeader("Rand-Int", String.valueOf(new Random().nextInt(10)));
         
         return httpResponse;
     }
