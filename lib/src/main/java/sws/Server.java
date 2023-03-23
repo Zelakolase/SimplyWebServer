@@ -8,11 +8,13 @@ import sws.io.Log;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocketFactory;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.*;
@@ -64,23 +66,12 @@ public class Server {
 
     private Void handleWriteRequest(KeyAttachment.HandlerArgs handlerArgs) {
         SocketChannel socketChannel = (SocketChannel) handlerArgs.channel;
-        Object attachment = handlerArgs.keyAttachment.attachment();
+        HttpResponse response = (HttpResponse) handlerArgs.keyAttachment.attachment();
 
         try {
-            HttpResponse response;
-            if (attachment instanceof HttpRequest) {
-                response = handler.apply(((HttpRequest) handlerArgs.keyAttachment.attachment()));
-            } else if (attachment instanceof HttpResponse) {
-                response = (HttpResponse) attachment;
-            } else {
-                socketChannel.close();
-                return null;
-            }
-
             if (response.hasResponse()) {
                 try {
                     socketChannel.write(response.getResponse());
-                    handlerArgs.keyAttachment.attach(response);
                     socketChannel.register(handlerArgs.selector, SelectionKey.OP_WRITE, handlerArgs.keyAttachment);
                     currentConnections.incrementAndGet();
                 } catch (Exception e) {
@@ -101,11 +92,7 @@ public class Server {
     private Void handleReadRequest(KeyAttachment.HandlerArgs handlerArgs) {
         SocketChannel socketChannel = (SocketChannel) handlerArgs.channel;
         try {
-            socketChannel.socket()
-                         .setOption(StandardSocketOptions.SO_KEEPALIVE, KEEP_ALIVE)
-                         .setOption(StandardSocketOptions.TCP_NODELAY, TCP_NODELAY)
-                         .setOption(StandardSocketOptions.SO_RCVBUF, MAX_REQUEST_SIZE_BYTES)
-                         .setOption(StandardSocketOptions.SO_SNDBUF, MAX_RESPONSE_SIZE_BYTES);
+            socketChannel.socket().setOption(StandardSocketOptions.SO_KEEPALIVE, KEEP_ALIVE).setOption(StandardSocketOptions.TCP_NODELAY, TCP_NODELAY).setOption(StandardSocketOptions.SO_RCVBUF, MAX_REQUEST_SIZE_BYTES).setOption(StandardSocketOptions.SO_SNDBUF, MAX_RESPONSE_SIZE_BYTES);
 
             ByteBuffer buffer = ByteBuffer.allocate(MAX_REQUEST_SIZE_BYTES + 1);
             if (socketChannel.read(buffer) > MAX_REQUEST_SIZE_BYTES) {
@@ -153,8 +140,10 @@ public class Server {
                 return null;
             }
 
+            HttpResponse httpResponse = handler.apply(httpRequest);
+            handlerArgs.keyAttachment.attach(httpResponse);
+            handlerArgs.keyAttachment.setHandler(this::handleWriteRequest);
             try {
-                handlerArgs.keyAttachment.setHandler(this::handleWriteRequest);
                 socketChannel.register(handlerArgs.selector, SelectionKey.OP_WRITE, handlerArgs.keyAttachment);
                 currentConnections.incrementAndGet();
             } catch (ClosedChannelException e) {
@@ -192,8 +181,7 @@ public class Server {
                             }
 
                             socketChannel.configureBlocking(false);
-                            KeyAttachment keyAttachment = new KeyAttachment(socketChannel, selectorThreadLocal.get(),
-                                    this::handleReadRequest);
+                            KeyAttachment keyAttachment = new KeyAttachment(socketChannel, selectorThreadLocal.get(), this::handleReadRequest);
                             socketChannel.register(selectorThreadLocal.get(), SelectionKey.OP_READ, keyAttachment);
                         }
                     } else if (key.isReadable()) {
@@ -244,27 +232,22 @@ public class Server {
         startHttps(KeyStorePath, KeyStorePassword, TLSVersion, "JKS", "SunX509");
     }
 
-    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion,
-                           String KeyStoreType) throws Exception {
+    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType) throws Exception {
         startHttps(KeyStorePath, KeyStorePassword, TLSVersion, KeyStoreType, "SunX509");
     }
 
-    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType,
-                           String KeyManagerFactoryType) throws Exception {
+    public void startHttps(String KeyStorePath, String KeyStorePassword, String TLSVersion, String KeyStoreType, String KeyManagerFactoryType) throws Exception {
         System.setProperty("jdk.tls.ephemeralDHKeySize", "2048");                   // LOGJAM TLS Attack
         System.setProperty("jdk.tls.rejectClientInitiatedRenegotiation", "true");   // Client Renegotiation Attack
         final int nCores = Runtime.getRuntime().availableProcessors();
         final Thread[] threads = new Thread[nCores];
 
         Log.s("Server running at :" + PORT);
+        SSLServerSocketFactory serverSocketFactory = getSSLContext(Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType, KeyManagerFactoryType).getServerSocketFactory();
         for (int i = 0; i < nCores; ++i) {
             threads[i] = new Thread(() -> {
-                try (Selector selector = Selector.open(); ServerSocketChannel serverSocketChannel = getSSLContext(
-                        Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion, KeyStoreType,
-                        KeyManagerFactoryType).getServerSocketFactory()
-                                              .createServerSocket(PORT, backlog)
-                                              .getChannel()) {
-                    init(selector, serverSocketChannel);
+                try (Selector selector = Selector.open(); ServerSocket serverSocket = serverSocketFactory.createServerSocket(PORT, backlog)) {
+                    init(selector, serverSocket.getChannel());
                     mainLoop();
                 } catch (Exception e) {
                     throw new RuntimeException(e);
@@ -277,8 +260,7 @@ public class Server {
             thread.join();
     }
 
-    private SSLContext getSSLContext(Path keyStorePath, char[] keyStorePass, String TLSVersion, String KeyStoreType,
-                                     String KeyManagerFactoryType) throws Exception {
+    private SSLContext getSSLContext(Path keyStorePath, char[] keyStorePass, String TLSVersion, String KeyStoreType, String KeyManagerFactoryType) throws Exception {
         var keyStore = KeyStore.getInstance(KeyStoreType);
         keyStore.load(new FileInputStream(keyStorePath.toFile()), keyStorePass);
         var keyManagerFactory = KeyManagerFactory.getInstance(KeyManagerFactoryType);

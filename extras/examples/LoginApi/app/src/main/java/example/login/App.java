@@ -1,20 +1,20 @@
-package test;
+package example.login;
 
-import http.HttpBufferResponse;
-import http.HttpRequest;
-import http.config.HttpStatusCode;
-import lib.JSON;
-import server.Server;
+import sws.http.HttpBufferResponse;
+import sws.http.HttpRequest;
+import sws.http.config.HttpStatusCode;
+import sws.utils.JSON;
+import sws.Server;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Random;
 
-public class SimpleLogin {
-    public static String HTMLCode =
-            "<!DOCTYPE html><html><head><title>Login Form</title></head><body><h1>Login Form (check browser log for response)</h1><form id=\"login-form\"><label for=\"username\">Username</label><input type=\"text\" id=\"username\" name=\"username\" required><br><br><label for=\"password\">Password</label><input type=\"password\" id=\"password\" name=\"password\" required><br><br><input type=\"submit\" value=\"Login\"></form><script>const form = document.getElementById('login-form');form.addEventListener('submit', async (event) => {event.preventDefault();const formData = new FormData(form);const response = await fetch('/api/login', {method: 'POST',body: JSON.stringify(Object.fromEntries(formData.entries())),headers: {'Content-Type': 'application/json'}});const data = await response.json();console.log(data);});</script></body></html>";
-    public static String username = "morad";
-    public static String password = "morad";
+public class App {
+
+    private final static String HTMLCode = "<!DOCTYPE html><html><head><title>Login Form</title></head><body><h1>Login Form (check browser log for response)</h1><form id=\"login-form\"><label for=\"username\">Username</label><input type=\"text\" id=\"username\" name=\"username\" required><br><br><label for=\"password\">Password</label><input type=\"password\" id=\"password\" name=\"password\" required><br><br><input type=\"submit\" value=\"Login\"></form><script>const form = document.getElementById('login-form');form.addEventListener('submit', async (event) => {event.preventDefault();const formData = new FormData(form);const response = await fetch('/api/login', {method: 'POST',body: JSON.stringify(Object.fromEntries(formData.entries())),headers: {'Content-Type': 'application/json'}});const data = await response.json();console.log(data);});</script></body></html>";
+    private final static String username = "morad";
+    private final static String password = "morad";
 
     private static HttpBufferResponse handle(HttpRequest httpRequest) {
         HttpBufferResponse httpBufferResponse = new HttpBufferResponse();
@@ -24,8 +24,7 @@ public class SimpleLogin {
             if (httpRequest.getPath().equals("/index.html")) {
                 httpBufferResponse.setBody(HTMLCode);
                 httpBufferResponse.setHttpStatusCode(HttpStatusCode.OK);
-            } else if (httpRequest.getPath().equals("/api/login") &&
-                    httpRequest.getHttpRequestMethod().equalsIgnoreCase("post")) {
+            } else if (httpRequest.getPath().equals("/api/login") && httpRequest.getHttpRequestMethod().equalsIgnoreCase("post")) {
                 HashMap<String, String> LoginInfo = JSON.QHM(httpRequest.getBodyAsString());
                 if (!(LoginInfo.containsKey("username") && LoginInfo.containsKey("password"))) {
                     httpBufferResponse.setBody(JSON.HMQ(new HashMap<>() {{
@@ -58,9 +57,10 @@ public class SimpleLogin {
         return httpBufferResponse;
     }
 
+
     public static void main(String[] args) throws Exception {
 
-        Server server = new Server(SimpleLogin::handle);
+        Server server = new Server(App::handle);
         server.startHttp();
         /* For HTTPS
          * server.port = 443;

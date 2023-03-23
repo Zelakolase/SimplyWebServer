@@ -1,4 +1,4 @@
-package lib;
+package sws.utils;
 
 import java.util.HashMap;
 import java.util.Map;
