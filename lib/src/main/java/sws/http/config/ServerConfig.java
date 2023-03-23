@@ -1,6 +1,6 @@
-package http.config;
+package sws.http.config;
 
-import lib.SparkDB;
+import sws.db.SparkDB;
 
 public interface ServerConfig {
     int PORT = 8080;

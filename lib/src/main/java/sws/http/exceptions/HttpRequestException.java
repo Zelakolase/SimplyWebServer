@@ -1,9 +1,9 @@
-package http.exceptions;
+package sws.http.exceptions;
 
-public class HttpResponseException extends Exception {
+public class HttpRequestException extends Exception {
     private final String errorMsg;
 
-    public HttpResponseException(String errorMsg) {
+    public HttpRequestException(String errorMsg) {
         this.errorMsg = errorMsg;
     }
 

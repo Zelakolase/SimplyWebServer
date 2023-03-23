@@ -1,7 +1,8 @@
-package http;
+package sws.http;
 
-import http.config.HttpStatusCode;
-import lib.log;
+import sws.http.config.HttpStatusCode;
+import sws.io.Log;
+import sws.utils.Utils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -9,8 +10,7 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 
-import static http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
-import static lib.Network.compress;
+import static sws.http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
 
 public class HttpBufferResponse extends HttpResponse {
     private final ByteArrayOutputStream body = new ByteArrayOutputStream();
@@ -62,7 +62,7 @@ public class HttpBufferResponse extends HttpResponse {
         setBufferWithHeader(response, httpStatusCode, httpContentType, headers);
         try {
             if (useGzip) {
-                byte[] compressedBody = compress(this.body.toByteArray());
+                byte[] compressedBody = Utils.compress(this.body.toByteArray());
                 response.put("content-encoding: gzip\r\n".getBytes());
                 response.put("content-length: ".getBytes());
                 response.put(String.valueOf(compressedBody.length).getBytes());
@@ -75,7 +75,7 @@ public class HttpBufferResponse extends HttpResponse {
                 response.put(this.body.toByteArray());
             }
         } catch (IOException ignored) {
-            log.e("failed to compress response body");
+            Log.e("failed to compress response body");
             response.put("content-length: ".getBytes());
             response.put(String.valueOf(this.body.size()).getBytes());
             response.put("\r\n\r\n".getBytes());

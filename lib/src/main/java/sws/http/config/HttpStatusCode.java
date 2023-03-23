@@ -1,4 +1,4 @@
-package http.config;
+package sws.http.config;
 
 public enum HttpStatusCode {
     OK(200, "OK"), CREATED(201, "Created"), NO_CONTENT(204, "No Content"), PARTIAL_CONTENT(206, "Partial Content"),

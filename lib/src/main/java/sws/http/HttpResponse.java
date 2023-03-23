@@ -1,6 +1,6 @@
-package http;
+package sws.http;
 
-import http.config.HttpStatusCode;
+import sws.http.config.HttpStatusCode;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -9,7 +9,7 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-import static http.config.ServerConfig.HTTP_PROTO_VERSION;
+import static sws.http.config.ServerConfig.HTTP_PROTO_VERSION;
 
 
 public abstract class HttpResponse {

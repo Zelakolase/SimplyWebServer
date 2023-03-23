@@ -1,11 +1,15 @@
-package lib;
+package sws.db;
 
+
+import sws.io.Log;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.Map.Entry;
@@ -33,9 +37,9 @@ public class SparkDB {
 
     public SparkDB(String filepath) {
         try {
-        this.readFromFile(filepath);
-        }catch(Exception E) {
-            log.e(E, "SparkDB", "Constructor");
+            this.readFromFile(filepath);
+        } catch (Exception E) {
+            Log.e(E, "SparkDB", "Constructor");
         }
     }
 
@@ -75,7 +79,7 @@ public class SparkDB {
      * @see #readFromString(String)
      */
     public void readFromFile(String filename) throws Exception {
-        readFromString(new String(Objects.requireNonNull(IO.read(filename))));
+        readFromString(new String(Objects.requireNonNull(Files.readAllBytes(Paths.get(filename)))));
     }
 
     /**

@@ -1,10 +1,10 @@
-package server;
+package sws;
 
-import http.HttpRequest;
-import http.HttpResponse;
-import http.exceptions.HttpRequestException;
-import io.KeyAttachment;
-import lib.log;
+import sws.http.HttpRequest;
+import sws.http.HttpResponse;
+import sws.http.exceptions.HttpRequestException;
+import sws.io.KeyAttachment;
+import sws.io.Log;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -22,7 +22,7 @@ import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 
-import static http.config.ServerConfig.*;
+import static sws.http.config.ServerConfig.*;
 
 public class Server {
     public final int backlog;
@@ -84,14 +84,14 @@ public class Server {
                     socketChannel.register(handlerArgs.selector, SelectionKey.OP_WRITE, handlerArgs.keyAttachment);
                     currentConnections.incrementAndGet();
                 } catch (Exception e) {
-                    log.e(getStackTrace(e));
+                    Log.e(getStackTrace(e));
                     socketChannel.close();
                 }
             } else {
                 socketChannel.close();
             }
         } catch (IOException e) {
-            log.e(getStackTrace(e));
+            Log.e(getStackTrace(e));
         } finally {
             currentConnections.decrementAndGet();
         }
@@ -129,7 +129,7 @@ public class Server {
                 }
             } catch (HttpRequestException e) {
                 socketChannel.close();
-                log.e(getStackTrace(e));
+                Log.e(getStackTrace(e));
                 return null;
             }
             handlerArgs.keyAttachment.attach(httpRequest);
@@ -149,7 +149,7 @@ public class Server {
                 }
             } catch (NumberFormatException e) {
                 socketChannel.close();
-                log.e(getStackTrace(e));
+                Log.e(getStackTrace(e));
                 return null;
             }
 
@@ -188,7 +188,7 @@ public class Server {
                             if (currentConnections.incrementAndGet() > MAX_CONCURRENT_CONNECTIONS) {
                                 socketChannel.close();
                                 currentConnections.decrementAndGet();
-                                log.e("maximum concurrent connections reached");
+                                Log.e("maximum concurrent connections reached");
                             }
 
                             socketChannel.configureBlocking(false);
@@ -209,7 +209,7 @@ public class Server {
 
                 }
             } catch (IOException e) {
-                log.e(getStackTrace(e));
+                Log.e(getStackTrace(e));
             }
         }
     }
@@ -218,7 +218,7 @@ public class Server {
         final int nCores = Runtime.getRuntime().availableProcessors();
         final Thread[] threads = new Thread[nCores];
 
-        log.s("Server running at :" + PORT);
+        Log.s("Server running at :" + PORT);
         for (int i = 0; i < nCores; ++i) {
             threads[i] = new Thread(() -> {
                 try (Selector selector = Selector.open(); ServerSocketChannel serverSocketChannel = ServerSocketChannel.open()) {
@@ -256,7 +256,7 @@ public class Server {
         final int nCores = Runtime.getRuntime().availableProcessors();
         final Thread[] threads = new Thread[nCores];
 
-        log.s("Server running at :" + PORT);
+        Log.s("Server running at :" + PORT);
         for (int i = 0; i < nCores; ++i) {
             threads[i] = new Thread(() -> {
                 try (Selector selector = Selector.open(); ServerSocketChannel serverSocketChannel = getSSLContext(

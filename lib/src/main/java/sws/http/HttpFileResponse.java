@@ -1,8 +1,9 @@
-package http;
+package sws.http;
 
-import http.config.HttpStatusCode;
-import http.exceptions.HttpResponseException;
-import lib.log;
+import sws.http.config.HttpStatusCode;
+import sws.http.exceptions.HttpResponseException;
+import sws.io.Log;
+import sws.utils.Utils;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
@@ -14,14 +15,13 @@ import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
 
-import static http.config.ServerConfig.*;
-import static lib.Network.compress;
+import static sws.http.config.ServerConfig.*;
 
 public class HttpFileResponse extends HttpResponse {
     private final FileChannel fileChannel;
     private final Path filePath;
     private final ByteBuffer body = ByteBuffer.allocateDirect(MAX_FILE_CHUNK_SIZE_BYTES);
-    private final boolean hasResponse = true;
+    private boolean hasResponse = true;
     private boolean isHeaderSent = false;
     private int headerSize = 64;   // enough to handle protocol version & status code
 
@@ -31,9 +31,7 @@ public class HttpFileResponse extends HttpResponse {
     }
 
 
-    public HttpFileResponse(String filePathString, HttpStatusCode httpStatusCode, String httpContentType,
-                            boolean useGzip,
-                            HashMap<Object, Object> headers) throws IOException, HttpResponseException {
+    public HttpFileResponse(String filePathString, HttpStatusCode httpStatusCode, String httpContentType, boolean useGzip, HashMap<Object, Object> headers) throws IOException, HttpResponseException {
         this.filePath = Paths.get(ROOT_DIR, filePathString);
         this.fileChannel = FileChannel.open(filePath, StandardOpenOption.READ);
 
@@ -49,7 +47,7 @@ public class HttpFileResponse extends HttpResponse {
                     put("extension", tempSplit[tempSplit.length - 1]);
                 }}, "mime", 1).get(0);
             } catch (Exception e) {
-                log.e("failed to find mime in database");
+                Log.e("failed to find mime in database");
                 String contentType = Files.probeContentType(filePath);
                 this.httpContentType = contentType == null ? "text/html" : contentType;
             }
@@ -100,11 +98,11 @@ public class HttpFileResponse extends HttpResponse {
         if (maxRead < this.body.capacity()) {
             this.body.limit(maxRead);
         }
-        fileChannel.read(this.body);
+        if (fileChannel.read(this.body) == -1) hasResponse = false;
         this.body.flip();
         try {
             if (useGzip) {
-                ByteBuffer compressedBody = compress(this.body);
+                ByteBuffer compressedBody = Utils.compress(this.body);
                 response.put("content-encoding: gzip\r\n".getBytes());
                 response.put("\r\n\r\n".getBytes());
                 response.put(compressedBody);
@@ -118,7 +116,7 @@ public class HttpFileResponse extends HttpResponse {
                 response.put(this.body);
             }
         } catch (IOException ignored) {
-            log.e("failed to compress response body");
+            Log.e("failed to compress response body");
             if (fileSize != 0) {
                 response.put("content-length: ".getBytes());
                 response.put(String.valueOf(fileSize).getBytes());

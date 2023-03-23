@@ -1,12 +1,11 @@
-package lib;
+package sws.utils;
 
-import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.zip.GZIPOutputStream;
 
-public class Network {
+public class Utils {
     /**
      * GZIP Compression
      *
@@ -25,6 +24,7 @@ public class Network {
             return buffer;
         }
     }
+
     /**
      * GZIP Compression
      *
@@ -38,16 +38,5 @@ public class Network {
             }
             return outputStream.toByteArray();
         }
-    }
-
-    /**
-     * Mandatory Read (used rarely)
-     */
-    public static byte[] ManRead(BufferedInputStream dIS, int bytesToRead) {
-        try {
-            return dIS.readNBytes(bytesToRead);
-        } catch (Exception ignored) {
-        }
-        return null;
     }
 }

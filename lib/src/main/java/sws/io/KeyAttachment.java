@@ -1,4 +1,4 @@
-package io;
+package sws.io;
 
 import java.nio.channels.Channel;
 import java.nio.channels.Selector;

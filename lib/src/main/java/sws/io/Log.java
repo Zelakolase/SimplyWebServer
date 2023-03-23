@@ -1,9 +1,9 @@
-package lib;
+package sws.io;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 
-public class log {
+public class Log {
     public static final String RESET = "\u001B[0m";
     public static final String RED = "\u001B[31m";
     public static final String GREEN = "\u001B[32m";
@@ -46,6 +46,6 @@ public class log {
     public static void e(Exception e, String className, String FuncName) {
         StringWriter sw = new StringWriter();
         e.printStackTrace(new PrintWriter(sw));
-        log.e(className + "." + FuncName + "(..)" + " : " + sw);
+        Log.e(className + "." + FuncName + "(..)" + " : " + sw);
     }
 }

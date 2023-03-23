@@ -1,13 +1,13 @@
-package http;
+package sws.http;
 
-import http.exceptions.HttpRequestException;
+import sws.http.exceptions.HttpRequestException;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 
-import static http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
+import static sws.http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
 
 public class HttpRequest {
     private final String path;
