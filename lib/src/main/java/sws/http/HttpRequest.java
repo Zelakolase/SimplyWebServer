@@ -2,23 +2,22 @@ package sws.http;
 
 import sws.http.exceptions.HttpRequestException;
 
-import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 
-import static sws.http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
+import static sws.http.config.ServerConfig.MAX_REQUEST_SIZE_BYTES;
 
 public class HttpRequest {
     private final String path;
-    private final ByteBuffer body;
     private final String httpRequestMethod;
+    private final ByteArrayOutputStream body = new ByteArrayOutputStream();
     private final HashMap<String, String> headers = new HashMap<>();
-
     private int headerSize = 0;
 
-    public HttpRequest(ByteBuffer rawRequest) throws HttpRequestException {
-        String request = new String(rawRequest.array(), 0, rawRequest.limit(), StandardCharsets.US_ASCII);
+    public HttpRequest(ByteArrayOutputStream rawRequest) throws HttpRequestException {
+        String request = rawRequest.toString(StandardCharsets.US_ASCII);
         String[] lines = request.split("\r\n");
         if (lines.length == 0) {
             throw new HttpRequestException("malformed http request");
@@ -44,50 +43,42 @@ public class HttpRequest {
         ++idx;
 
         try {
-            ByteBuffer buffer = ByteBuffer.allocate(MAX_RESPONSE_SIZE_BYTES - headerSize);
             while (idx < lines.length) {
-                buffer.put(lines[idx++].getBytes());
+                body.write(lines[idx++].getBytes());
             }
-            buffer.flip();
-            this.body = buffer;
-        } catch (BufferOverflowException ignored) {
-            throw new HttpRequestException("http request too big");
+        } catch (IOException ignored) {
+            throw new HttpRequestException("couldn't parse http request body");
         }
     }
 
-    public void appendBuffer(ByteBuffer buffer) {
-        body.position(body.limit());
-        body.limit(body.capacity());
-        body.put(buffer);
-        body.flip();
+    public void appendBuffer(ByteArrayOutputStream buffer) throws IOException, HttpRequestException {
+        appendBuffer(buffer.toByteArray());
     }
 
-    public void appendBuffer(byte buffer) {
-        body.position(body.limit());
-        body.limit(body.capacity());
-        body.put(buffer);
-        body.flip();
+    public void appendBuffer(byte[] buffer) throws IOException, HttpRequestException {
+        if (body.size() + buffer.length > MAX_REQUEST_SIZE_BYTES)
+            throw new HttpRequestException("request size is more that the configured maximum");
+        body.write(buffer);
     }
 
     public String getPath() {
         return path;
     }
 
-    public ByteBuffer getBody() {
+    public ByteArrayOutputStream getBody() {
         return body;
     }
 
-    public String getBodyAsString() { return new String(body.array(), 0, body.limit()); }
+    public String getBodyAsString() {
+        return body.toString();
+    }
 
     public byte[] getBodyAsByteArray() {
-        byte[] array = new byte[body.limit()];
-        body.get(array);
-        body.flip();
-        return array;
+        return body.toByteArray();
     }
 
     public int getBodySize() {
-        return body.limit();
+        return body.size();
     }
 
     public int getHeaderSize() {

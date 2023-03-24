@@ -9,10 +9,7 @@ import sws.io.Log;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLServerSocketFactory;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.io.StringWriter;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.StandardSocketOptions;
@@ -94,25 +91,29 @@ public class Server {
         try {
             socketChannel.socket().setOption(StandardSocketOptions.SO_KEEPALIVE, KEEP_ALIVE).setOption(StandardSocketOptions.TCP_NODELAY, TCP_NODELAY).setOption(StandardSocketOptions.SO_RCVBUF, MAX_REQUEST_SIZE_BYTES).setOption(StandardSocketOptions.SO_SNDBUF, MAX_RESPONSE_SIZE_BYTES);
 
-            ByteBuffer buffer = ByteBuffer.allocate(MAX_REQUEST_SIZE_BYTES + 1);
-            if (socketChannel.read(buffer) > MAX_REQUEST_SIZE_BYTES) {
-                socketChannel.close();
-                throw new IOException("Request too big");
-            }
-            buffer.flip();
-            if (buffer.limit() == 0) {
-                socketChannel.close();
-                return null;
-            }
+            ByteArrayOutputStream fullBuffer = new ByteArrayOutputStream();
+            ByteBuffer tempBuffer = ByteBuffer.allocate(256);
+            int readSize, totalReadSize = 0;
+            while ((readSize = socketChannel.read(tempBuffer)) != -1) {
+                totalReadSize += readSize;
 
+                if (totalReadSize > MAX_REQUEST_SIZE_BYTES) {
+                    socketChannel.close();
+                    throw new IOException("Request too big");
+                }
+
+                tempBuffer.flip();
+                fullBuffer.write(tempBuffer.array(), 0, tempBuffer.limit());
+                tempBuffer.clear();
+            }
 
             HttpRequest httpRequest;
             try {
                 if (handlerArgs.keyAttachment.attachment() != null) {
                     httpRequest = (HttpRequest) handlerArgs.keyAttachment.attachment();
-                    httpRequest.appendBuffer(buffer);
+                    httpRequest.appendBuffer(fullBuffer);
                 } else {
-                    httpRequest = new HttpRequest(buffer);
+                    httpRequest = new HttpRequest(fullBuffer);
                 }
             } catch (HttpRequestException e) {
                 socketChannel.close();
