@@ -94,7 +94,7 @@ public class Server {
             ByteArrayOutputStream fullBuffer = new ByteArrayOutputStream();
             ByteBuffer tempBuffer = ByteBuffer.allocate(256);
             int readSize, totalReadSize = 0;
-            while ((readSize = socketChannel.read(tempBuffer)) != -1) {
+            while ((readSize = socketChannel.read(tempBuffer)) > 0) {
                 totalReadSize += readSize;
 
                 if (totalReadSize > MAX_REQUEST_SIZE_BYTES) {

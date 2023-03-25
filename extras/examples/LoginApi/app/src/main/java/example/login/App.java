@@ -62,10 +62,8 @@ public class App {
 
         Server server = new Server(App::handle);
         server.startHttp();
-        /* For HTTPS
-         * server.port = 443;
-         * server.startHttps("./etc/keystore.jks", "123456");
-         */
+        // For HTTPS
+        // server.startHttps("./etc/keystore.jks", "123456");
     }
 
 }
