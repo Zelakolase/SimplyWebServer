@@ -25,6 +25,20 @@ public class Network {
             return buffer;
         }
     }
+    /**
+     * GZIP Compression
+     *
+     * @param data data to compress in bytes
+     * @return compressed data in bytes
+     */
+    public static byte[] compress(byte[] data) throws IOException {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream(data.length)) {
+            try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
+                gzipOutputStream.write(data);
+            }
+            return outputStream.toByteArray();
+        }
+    }
 
     /**
      * Mandatory Read (used rarely)

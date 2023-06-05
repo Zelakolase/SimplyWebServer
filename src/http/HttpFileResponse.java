@@ -23,6 +23,7 @@ public class HttpFileResponse extends HttpResponse {
     private final ByteBuffer body = ByteBuffer.allocateDirect(MAX_FILE_CHUNK_SIZE_BYTES);
     private final boolean hasResponse = true;
     private boolean isHeaderSent = false;
+    private int headerSize = 64;   // enough to handle protocol version & status code
 
 
     public HttpFileResponse(String filePathString) throws IOException, HttpResponseException {
@@ -54,13 +55,16 @@ public class HttpFileResponse extends HttpResponse {
             }
         }
 
+        this.headerSize += this.httpContentType.length();
         this.useGzip = useGzip;
 
         headers.forEach((key, value) -> headers.put(key.toString(), value.toString()));
     }
 
     void setHttpContentType(String httpContentType) {
+        this.headerSize -= this.httpContentType.length();
         this.httpContentType = httpContentType;
+        this.headerSize += httpContentType.length();
     }
 
     @Override
@@ -124,12 +128,27 @@ public class HttpFileResponse extends HttpResponse {
             response.put(this.body);
         } catch (BufferOverflowException e) {
             this.httpStatusCode = HttpStatusCode.INTERNAL_SERVER_ERROR;
-            response.position(headers.size());
+            response.position(headerSize);
             response.flip();
             return response;
         }
 
         response.flip();
         return response;
+    }
+
+    @Override
+    public void addHeader(String header, String value) {
+        // headerSize = header.length() + ": " + value.length() + "\r\n"
+        headerSize += header.length() + 2 + value.length() + 2;
+        headers.put(header, value);
+    }
+
+    @Override
+    public void deleteHeader(String header) {
+        if (headers.containsKey(header)) {
+            headerSize -= header.length() + headers.get(header).length();
+            headers.remove(header);
+        }
     }
 }
