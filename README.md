@@ -11,3 +11,5 @@ You need apache2-utils in order to run 'benchmark/login.sh'. You can download it
 - If you're using a different system, check its manual.
 In order to run the benchmark test, you need to run 'src/test/SimpleLogin' class at port 8080, then run the benchmark file 'benchmark/login.sh'. You run shell files in terminal by executing `$ chmod +x login.sh && ./login.sh`.
 
+## MIME Types
+For the sake of simplicity and minimalism, SimplyWebServer only recognizes the file extenstions specified in 'etc/MIME.db', you're free to add your own MIME types.
