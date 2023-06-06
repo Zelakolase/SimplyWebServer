@@ -22,7 +22,7 @@ public abstract class HttpResponse {
                                            HashMap<String, String> headers) throws BufferOverflowException {
         buffer.put(HTTP_PROTO_VERSION.getBytes());
         buffer.put((byte) ' ');
-        buffer.put(String.valueOf(httpStatusCode.getHtmlCode()).getBytes());
+        buffer.put(String.valueOf(httpStatusCode.getHttpCode()).getBytes());
         buffer.put((byte) ' ');
         buffer.put(httpStatusCode.toString().getBytes());
         buffer.put("\r\n".getBytes());
@@ -42,7 +42,7 @@ public abstract class HttpResponse {
                                            HashMap<String, String> headers) throws BufferOverflowException, IOException {
         buffer.write(HTTP_PROTO_VERSION.getBytes());
         buffer.write((byte) ' ');
-        buffer.write(String.valueOf(httpStatusCode.getHtmlCode()).getBytes());
+        buffer.write(String.valueOf(httpStatusCode.getHttpCode()).getBytes());
         buffer.write((byte) ' ');
         buffer.write(httpStatusCode.toString().getBytes());
         buffer.write("\r\n".getBytes());

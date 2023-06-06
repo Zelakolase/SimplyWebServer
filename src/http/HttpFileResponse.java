@@ -17,13 +17,22 @@ import java.util.HashMap;
 import static http.config.ServerConfig.*;
 import static lib.Network.compress;
 
+/*
+ * HTTP File Response Class. This class represents a single HTTP Response. It is used to send file content,
+ * not data.
+ * @see HttpBufferResponse
+ * @see HttpResponse
+ * @author Omar M. K. and Morad A.
+ * @version 1.0
+ */
 public class HttpFileResponse extends HttpResponse {
     private final FileChannel fileChannel;
     private final Path filePath;
     private final ByteBuffer body = ByteBuffer.allocateDirect(MAX_FILE_CHUNK_SIZE_BYTES);
     private final boolean hasResponse = true;
     private boolean isHeaderSent = false;
-    private int headerSize = 64;   // enough to handle protocol version & status code
+    /* The header size, the default size is 64 for the first line only. */
+    private int headerSize = 64;
 
 
     public HttpFileResponse(String filePathString) throws IOException, HttpResponseException {
