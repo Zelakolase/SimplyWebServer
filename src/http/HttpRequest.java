@@ -40,7 +40,7 @@ public class HttpRequest {
         String[] tokens = lines[0].split("\\s");
 
         httpRequestMethod = tokens[0];
-        path = tokens[1].equals("/") ? ServerConfig.indexFileName : tokens[1];
+        path = tokens[1].equals("/") ? "/" + ServerConfig.indexFileName : tokens[1];
 
         int idx = 1;
         for (; idx < lines.length && !lines[idx].isBlank(); ++idx) {

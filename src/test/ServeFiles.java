@@ -15,7 +15,7 @@ public class ServeFiles {
     private static HttpResponse handle(HttpRequest httpRequest) {
         HttpResponse httpResponse;
         try {
-            httpResponse = new HttpFileResponse(ServerConfig.ROOT_DIR+"/"+httpRequest.getPath());
+            httpResponse = new HttpFileResponse(ServerConfig.ROOT_DIR+httpRequest.getPath());
         } catch (Exception e) {
             log.e(Server.getStackTrace(e));
             httpResponse = new HttpBufferResponse(HttpStatusCode.INTERNAL_SERVER_ERROR);
@@ -31,8 +31,7 @@ public class ServeFiles {
         Server server = new Server(ServeFiles::handle);
         server.startHttp();
         /* For HTTPS
-         * server.port = 443;
-         * server.startHttps("./etc/keystore.jks", "123456");
+         * server.startHttps("src/etc/keystore.jks", "123456");
          */
     }
 }
