@@ -5,6 +5,7 @@ import http.HttpRequest;
 import http.HttpBufferResponse;
 import http.HttpResponse;
 import http.config.HttpStatusCode;
+import http.config.ServerConfig;
 import lib.log;
 import server.Server;
 
@@ -14,7 +15,7 @@ public class ServeFiles {
     private static HttpResponse handle(HttpRequest httpRequest) {
         HttpResponse httpResponse;
         try {
-            httpResponse = new HttpFileResponse("./www/"+httpRequest.getPath());
+            httpResponse = new HttpFileResponse(ServerConfig.ROOT_DIR+"/"+httpRequest.getPath());
         } catch (Exception e) {
             log.e(Server.getStackTrace(e));
             httpResponse = new HttpBufferResponse(HttpStatusCode.INTERNAL_SERVER_ERROR);

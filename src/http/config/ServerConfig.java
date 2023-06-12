@@ -32,6 +32,8 @@ public interface ServerConfig {
     String MIME_DB = "src/etc/MIME.db";
     /* MIME Types Object Declaration. */
     SparkDB MIME = new SparkDB(MIME_DB);
+    /* Default index filename */
+    String indexFileName = "index.html";
 
     /* HTTP Protocol Version.
      * @see <a href="https://www.baeldung.com/cs/http-versions">Baeldung Article of different HTTP Versions</a>
