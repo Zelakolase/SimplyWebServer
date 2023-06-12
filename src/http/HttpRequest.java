@@ -8,15 +8,26 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 
 import static http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
-
+/*
+ * This class represents a single HTTP Request
+ * @author Omar M. K. and Morad A.
+ * @version 1.0
+ */
 public class HttpRequest {
+    /* The path of the HTTP Request */
     private final String path;
     private final ByteBuffer body;
+    /* The HTTP Request Method can be GET, POST, etc.. */
     private final String httpRequestMethod;
     private final HashMap<String, String> headers = new HashMap<>();
 
+    /* The size of the request header, in bytes */
     private int headerSize = 0;
 
+    /*
+     * Default Constructor
+     * @param rawRequest The raw HTTP Request in a ByteBuffer
+     */
     public HttpRequest(ByteBuffer rawRequest) throws HttpRequestException {
         String request = new String(rawRequest.array(), 0, rawRequest.limit(), StandardCharsets.US_ASCII);
         String[] lines = request.split("\r\n");
@@ -55,6 +66,9 @@ public class HttpRequest {
         }
     }
 
+    /*
+     * Append a buffer (ByteBuffer) to the request body
+     */
     public void appendBuffer(ByteBuffer buffer) {
         body.position(body.limit());
         body.limit(body.capacity());
@@ -62,21 +76,33 @@ public class HttpRequest {
         body.flip();
     }
 
-    public void appendBuffer(byte buffer) {
+    /*
+     * Append a buffer (Byte Array) to the request body
+     */
+    public void appendBuffer(byte[] buffer) {
         body.position(body.limit());
         body.limit(body.capacity());
         body.put(buffer);
         body.flip();
     }
 
+    /*
+     * Get the path of the request
+     */
     public String getPath() {
         return path;
     }
 
+    /*
+     * Get the body (ByteBuffer) of the request
+     */
     public ByteBuffer getBody() {
         return body;
     }
 
+    /*
+     * Get the body (String) of the request
+     */
     public String getBodyAsString() { return new String(body.array(), 0, body.limit()); }
 
     public byte[] getBodyAsByteArray() {
@@ -86,18 +112,30 @@ public class HttpRequest {
         return array;
     }
 
+    /*
+     * Get the size of the body, in bytes
+     */
     public int getBodySize() {
         return body.limit();
     }
 
+    /*
+     * Get the size of the header, in bytes
+     */
     public int getHeaderSize() {
         return headerSize;
     }
 
+    /*
+     * Get the headers. Key: Header name, Value: Header Value
+     */
     public HashMap<String, String> getHeaders() {
         return headers;
     }
 
+    /*
+     * Get the HTTP Request Method
+     */
     public String getHttpRequestMethod() {
         return httpRequestMethod;
     }

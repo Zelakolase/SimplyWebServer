@@ -24,6 +24,11 @@ import java.util.function.Function;
 
 import static http.config.ServerConfig.*;
 
+/*
+ * The main Server TCP Connection handler
+ * @author Omar M. K. and Morad A.
+ * @version 1.0
+ */
 public class Server {
     public final int backlog;
     public final boolean useGzip;
@@ -32,16 +37,27 @@ public class Server {
     private final ThreadLocal<Selector> selectorThreadLocal = new ThreadLocal<>();
 
 
+    /*
+     * Default Constructor, GZip is not activated
+     * @param handler The entry-point function of the web application
+     */
     public Server(Function<HttpRequest, HttpResponse> handler) {
         this(handler, false);
     }
 
+    /*
+     * The full constructor. 
+     * Note: Backlog size is 5 times the MAX_CONCURRENT_CONNECTIONS
+     */
     public Server(Function<HttpRequest, HttpResponse> handler, boolean useGzip) {
         this.backlog = MAX_CONCURRENT_CONNECTIONS * 5;
         this.useGzip = useGzip;
         this.handler = handler;
     }
 
+    /*
+     * Converts a Throwable object (Exception) to Stack Trace String
+     */
     public static String getStackTrace(final Throwable throwable) {
         final StringWriter sw = new StringWriter();
         final PrintWriter pw = new PrintWriter(sw, true);
@@ -49,6 +65,9 @@ public class Server {
         return sw.getBuffer().toString();
     }
 
+    /*
+     * Initialize the Server
+     */
     private void init(Selector selector, ServerSocketChannel serverSocketChannel) {
         selectorThreadLocal.set(selector);
         try {
@@ -62,6 +81,9 @@ public class Server {
         }
     }
 
+    /*
+     * TODO: Write comments
+     */
     private Void handleWriteRequest(KeyAttachment.HandlerArgs handlerArgs) {
         SocketChannel socketChannel = (SocketChannel) handlerArgs.channel;
         Object attachment = handlerArgs.keyAttachment.attachment();
@@ -98,6 +120,9 @@ public class Server {
         return null;
     }
 
+    /*
+     * TODO: Write comments
+     */
     private Void handleReadRequest(KeyAttachment.HandlerArgs handlerArgs) {
         SocketChannel socketChannel = (SocketChannel) handlerArgs.channel;
         try {

@@ -11,15 +11,18 @@ import java.util.Map;
 
 import static http.config.ServerConfig.HTTP_PROTO_VERSION;
 
-
+/*
+ * The abstract HTTP Response Class, this class represents a single HTTP Response
+ * @author Omar M. K. and Morad A.
+ * @version 1.0
+ */
 public abstract class HttpResponse {
     protected final HashMap<String, String> headers = new HashMap<>();
     protected HttpStatusCode httpStatusCode;
     protected String httpContentType;
     protected boolean useGzip = false;
-
-    public static void setBufferWithHeader(ByteBuffer buffer, HttpStatusCode httpStatusCode, String httpContentType,
-                                           HashMap<String, String> headers) throws BufferOverflowException {
+    
+    public static void setBufferWithHeader(ByteBuffer buffer, HttpStatusCode httpStatusCode, String httpContentType, HashMap<String, String> headers) throws BufferOverflowException {
         buffer.put(HTTP_PROTO_VERSION.getBytes());
         buffer.put((byte) ' ');
         buffer.put(String.valueOf(httpStatusCode.getHttpCode()).getBytes());
@@ -37,9 +40,7 @@ public abstract class HttpResponse {
         buffer.put("\r\n".getBytes());
     }
 
-    public static void setBufferWithHeader(ByteArrayOutputStream buffer, HttpStatusCode httpStatusCode,
-                                           String httpContentType,
-                                           HashMap<String, String> headers) throws BufferOverflowException, IOException {
+    public static void setBufferWithHeader(ByteArrayOutputStream buffer, HttpStatusCode httpStatusCode, String httpContentType, HashMap<String, String> headers) throws BufferOverflowException, IOException {
         buffer.write(HTTP_PROTO_VERSION.getBytes());
         buffer.write((byte) ' ');
         buffer.write(String.valueOf(httpStatusCode.getHttpCode()).getBytes());

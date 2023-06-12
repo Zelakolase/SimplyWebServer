@@ -14,7 +14,7 @@ public class ServeFiles {
     private static HttpResponse handle(HttpRequest httpRequest) {
         HttpResponse httpResponse;
         try {
-            httpResponse = new HttpFileResponse(httpRequest.getPath());
+            httpResponse = new HttpFileResponse("./www/"+httpRequest.getPath());
         } catch (Exception e) {
             log.e(Server.getStackTrace(e));
             httpResponse = new HttpBufferResponse(HttpStatusCode.INTERNAL_SERVER_ERROR);
