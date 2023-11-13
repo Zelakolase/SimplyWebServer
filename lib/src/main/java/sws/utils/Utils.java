@@ -13,7 +13,8 @@ public class Utils {
      * @return compressed data in bytes
      */
     public static ByteBuffer compress(ByteBuffer data) throws IOException {
-        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream(Math.max(data.limit(), 1024))) {
+        try (ByteArrayOutputStream outputStream =
+                new ByteArrayOutputStream(Math.max(data.limit(), 1024))) {
             try (GZIPOutputStream gzipOutputStream = new GZIPOutputStream(outputStream)) {
                 gzipOutputStream.write(data.array(), 0, data.limit());
             }

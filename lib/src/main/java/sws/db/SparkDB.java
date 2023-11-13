@@ -1,11 +1,5 @@
 package sws.db;
 
-
-import sws.io.Log;
-
-import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -13,6 +7,10 @@ import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.Map.Entry;
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import sws.io.Log;
 
 /**
  * SparkDB Object
@@ -52,8 +50,10 @@ public class SparkDB {
         StringBuilder rawHeader = new StringBuilder();
         for (int i = 0; i < headers.size(); i++) {
             boolean isLast = (headers.size() - 1) == i;
-            if (!isLast) rawHeader.append("\"").append(headers.get(i)).append("\",");
-            else rawHeader.append("\"").append(headers.get(i)).append("\"");
+            if (!isLast)
+                rawHeader.append("\"").append(headers.get(i)).append("\",");
+            else
+                rawHeader.append("\"").append(headers.get(i)).append("\"");
         }
         readFromString(rawHeader.toString());
     }
@@ -61,8 +61,8 @@ public class SparkDB {
     /**
      * Reads encrypted CSV data from disk, decrypts it, then processes it.
      *
-     * @param filename  The filename of the CSV file. <i>./data.csv</i> to point at
-     *                  <b>data.csv</b> in the current directory.
+     * @param filename The filename of the CSV file. <i>./data.csv</i> to point at <b>data.csv</b>
+     *        in the current directory.
      * @param Crypt_Key The decryption key
      */
     public void readFromFile(String filename, String Crypt_Key) throws Exception {
@@ -74,8 +74,8 @@ public class SparkDB {
     /**
      * Reads CSV data from disk, then processes it.
      *
-     * @param filename The filename of the CSV file. <i>./data.csv</i> to point at
-     *                 <b>data.csv</b> in the current directory.
+     * @param filename The filename of the CSV file. <i>./data.csv</i> to point at <b>data.csv</b>
+     *        in the current directory.
      * @see #readFromString(String)
      */
     public void readFromFile(String filename) throws Exception {
@@ -85,12 +85,12 @@ public class SparkDB {
     /**
      * Processes CSV content into data structure
      *
-     * @param data The input lines. First line should be the header. New line
-     *             delimiters are '\n' and '\r'.<br>
-     *             Headers example: <i>"username","password"</i><br>
-     *             Query Example: <i>"morad","123"</i><br>
-     *             Input String Argument Example:
-     *             <i><code>"username","password"\n"morad","123"</code></i>
+     * @param data The input lines. First line should be the header. New line delimiters are '\n'
+     *        and '\r'.<br>
+     *        Headers example: <i>"username","password"</i><br>
+     *        Query Example: <i>"morad","123"</i><br>
+     *        Input String Argument Example:
+     *        <i><code>"username","password"\n"morad","123"</code></i>
      */
     public void readFromString(String data) throws Exception {
         zero();
@@ -104,7 +104,8 @@ public class SparkDB {
         while ((line = br.readLine()) != null) {
             if (!isHeaderProcessed) {
                 header = line.split("\",\""); // ","
-                temp_1 = header[header.length - 1].substring(0, header[header.length - 1].length() - 1);
+                temp_1 = header[header.length - 1].substring(0,
+                        header[header.length - 1].length() - 1);
                 temp_0 = header[0].substring(1);
                 Mapper.put(temp_0, new HMList());
                 Headers.add(temp_0);
@@ -123,7 +124,8 @@ public class SparkDB {
                 for (int x = 1; x < (num_header - 1); x++) {
                     Mapper.get(header[x]).add(single_col[x]);
                 }
-                Mapper.get(temp_1).add(single_col[num_header - 1].substring(0, single_col[num_header - 1].length() - 1));
+                Mapper.get(temp_1).add(single_col[num_header - 1].substring(0,
+                        single_col[num_header - 1].length() - 1));
             }
         }
         br.close();
@@ -131,30 +133,32 @@ public class SparkDB {
 
     /**
      * Get indices of the rows that apply certain rules.<br>
-     * HashMap argument [pass=123] will return all rows that have '123' in 'pass'
-     * column
+     * HashMap argument [pass=123] will return all rows that have '123' in 'pass' column
      *
-     * @param in   Rules in form of Key:Column name and Value:Column Value
+     * @param in Rules in form of Key:Column name and Value:Column Value
      * @param iter How many indices should the function return
      * @return ArrayList with all IDs applying rules passed in HashMap argument
      */
     public ArrayList<Integer> getIDs(HashMap<String, String> in, int iter) {
-        if (in.size() < 1) throw new IllegalArgumentException("HashMap argument passed in getIDs(..) has no elements");
+        if (in.size() < 1)
+            throw new IllegalArgumentException(
+                    "HashMap argument passed in getIDs(..) has no elements");
         Entry<String, String> FirstElement = in.entrySet().iterator().next();
-        ArrayList<Integer> out = new ArrayList<>(Mapper.get(FirstElement.getKey()).multipleGet(FirstElement.getValue(), iter));
+        ArrayList<Integer> out = new ArrayList<>(
+                Mapper.get(FirstElement.getKey()).multipleGet(FirstElement.getValue(), iter));
         for (Integer temp : out) {
             boolean match = false;
             for (Entry<String, String> entry : in.entrySet()) {
                 match = Mapper.get(entry.getKey()).get(temp).equals(entry.getValue());
             }
-            if (!match) out.remove(temp);
+            if (!match)
+                out.remove(temp);
         }
         return out;
     }
 
     /**
-     * See {@link #getIDs(HashMap, int)}. Grab maximum indices possible that apply
-     * certain rules.
+     * See {@link #getIDs(HashMap, int)}. Grab maximum indices possible that apply certain rules.
      *
      * @param in Rules in form of Key:Column name and Value:Column Value
      * @return ArrayList with all IDs applying rules passed in HashMap argument
@@ -164,12 +168,12 @@ public class SparkDB {
     }
 
     /**
-     * Gets column values from of a certain column name for rows that apply certain
-     * rules. See {@link #getIDs(HashMap, int)}.
+     * Gets column values from of a certain column name for rows that apply certain rules. See
+     * {@link #getIDs(HashMap, int)}.
      *
-     * @param input     Rules in form of Key:Column name and Value:Column Value
+     * @param input Rules in form of Key:Column name and Value:Column Value
      * @param ColToFind Target column name
-     * @param iter      How many indices should the function return
+     * @param iter How many indices should the function return
      * @return Column values of certain rows that apply certain rows
      */
     public ArrayList<String> get(HashMap<String, String> input, String ColToFind, int iter) {
@@ -184,7 +188,7 @@ public class SparkDB {
     /**
      * See {@link #get(HashMap, String, int)}. Grab maximum indices possible.
      *
-     * @param input     Rules in form of Key:Column name and Value:Column Value
+     * @param input Rules in form of Key:Column name and Value:Column Value
      * @param ColToFind Target column name
      * @return Column values of certain rows that apply certain rows
      */
@@ -235,11 +239,10 @@ public class SparkDB {
     }
 
     /**
-     * Delete certain rows that apply certain rules. See
-     * {@link #getIDs(HashMap, int)}
+     * Delete certain rows that apply certain rules. See {@link #getIDs(HashMap, int)}
      *
      * @param input Rules in form of Key:Column name and Value:Column Value
-     * @param iter  How many rows that apply certain rules should be removed
+     * @param iter How many rows that apply certain rules should be removed
      */
     public void delete(HashMap<String, String> input, int iter) {
         ArrayList<Integer> indices = getIDs(input, iter);
@@ -288,13 +291,16 @@ public class SparkDB {
     /**
      * Adds multiple rows. Every element in variable 'in' is a row
      *
-     * @param in List of rows to be added. See {@link #add(HashMap)} for more
-     *           details on HashMap structure
+     * @param in List of rows to be added. See {@link #add(HashMap)} for more details on HashMap
+     *        structure
      */
     public void add(ArrayList<HashMap<String, String>> in) {
         for (HashMap<String, String> cmd : in) {
             if (!cmd.keySet().containsAll(Headers)) {
-                throw new IllegalArgumentException("All supposed headers are not included in add(..) argument." + "Supposed Headers: " + Headers + "." + "Received Headers: " + cmd.keySet() + ".");
+                throw new IllegalArgumentException(
+                        "All supposed headers are not included in add(..) argument."
+                                + "Supposed Headers: " + Headers + "." + "Received Headers: "
+                                + cmd.keySet() + ".");
             }
             for (Entry<String, String> inputaya : cmd.entrySet()) {
                 String input = inputaya.getValue();
@@ -306,12 +312,11 @@ public class SparkDB {
     }
 
     /**
-     * Modifies column values for a specific column name(s) for rows that apply
-     * certain rules. See {@link #getIDs(HashMap, int)}
+     * Modifies column values for a specific column name(s) for rows that apply certain rules. See
+     * {@link #getIDs(HashMap, int)}
      *
-     * @param in   Rules in form of Key:Column name and Value:Column Value
-     * @param edit Modification(s) to apply. In form of Key: Column name and Value:
-     *             Column value
+     * @param in Rules in form of Key:Column name and Value:Column Value
+     * @param edit Modification(s) to apply. In form of Key: Column name and Value: Column value
      * @param iter How many indices to modify
      */
     public void modify(HashMap<String, String> in, HashMap<String, String> edit, int iter) {
@@ -324,12 +329,10 @@ public class SparkDB {
     }
 
     /**
-     * See {@link #modify(HashMap, HashMap, int)}. Modifies all rows that apply
-     * certain rules
+     * See {@link #modify(HashMap, HashMap, int)}. Modifies all rows that apply certain rules
      *
-     * @param in   Rules in form of Key:Column name and Value:Column Value
-     * @param edit Modification(s) to apply. In form of Key: Column name and Value:
-     *             Column value
+     * @param in Rules in form of Key:Column name and Value:Column Value
+     * @param edit Modification(s) to apply. In form of Key: Column name and Value: Column value
      */
     public void modify(HashMap<String, String> in, HashMap<String, String> edit) {
         modify(in, edit, Integer.MAX_VALUE);
@@ -339,8 +342,7 @@ public class SparkDB {
      * Modifies a certain row based on its index value
      *
      * @param index Target index value
-     * @param edit  Modification(s) to apply. In form of Key: Column name and Value:
-     *              Column value
+     * @param edit Modification(s) to apply. In form of Key: Column name and Value: Column value
      */
     public void modify(int index, HashMap<String, String> edit) {
         for (Entry<String, String> modification : edit.entrySet()) {
@@ -400,7 +402,7 @@ public class SparkDB {
         /**
          * Get multiple indices that are linked with the same String value
          *
-         * @param in   The String value
+         * @param in The String value
          * @param iter How many indices to grab
          * @return
          */
@@ -419,7 +421,7 @@ public class SparkDB {
         /**
          * Edits an entry based on its index value
          *
-         * @param i  Target Index Value
+         * @param i Target Index Value
          * @param ns The new String value
          */
         public void edit(int i, String ns) {
@@ -466,7 +468,8 @@ public class SparkDB {
         public static byte[] decrypt(byte[] strToDecrypt, String secret) throws Exception {
             setKey(secret);
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-            cipher.init(Cipher.DECRYPT_MODE, secretKey, new IvParameterSpec(Arrays.copyOf(key, 16)));
+            cipher.init(Cipher.DECRYPT_MODE, secretKey,
+                    new IvParameterSpec(Arrays.copyOf(key, 16)));
             return cipher.doFinal(Base64.getDecoder().decode(strToDecrypt));
         }
     }

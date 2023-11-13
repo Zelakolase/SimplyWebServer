@@ -1,22 +1,20 @@
 package sws.http;
 
-import sws.http.config.HttpStatusCode;
-import sws.io.Log;
-import sws.utils.Utils;
+import static sws.http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
-
-import static sws.http.config.ServerConfig.MAX_RESPONSE_SIZE_BYTES;
+import sws.http.config.HttpStatusCode;
+import sws.io.Log;
+import sws.utils.Utils;
 
 public class HttpBufferResponse extends HttpResponse {
     private final ByteArrayOutputStream body = new ByteArrayOutputStream();
     private boolean hasResponse = true;
-    private int headerSize = 64;   // enough to handle protocol version & status code
-
+    private int headerSize = 64; // enough to handle protocol version & status code
 
     public HttpBufferResponse() {
         this(HttpStatusCode.OK);
@@ -30,12 +28,13 @@ public class HttpBufferResponse extends HttpResponse {
         this(httpStatusCode, httpContentType, false);
     }
 
-    public HttpBufferResponse(HttpStatusCode httpStatusCode, String httpContentType, boolean useGzip) {
+    public HttpBufferResponse(HttpStatusCode httpStatusCode, String httpContentType,
+            boolean useGzip) {
         this(httpStatusCode, httpContentType, useGzip, new HashMap<>());
     }
 
-    public HttpBufferResponse(HttpStatusCode httpStatusCode, String httpContentType, boolean useGzip,
-                              HashMap<Object, Object> headers) {
+    public HttpBufferResponse(HttpStatusCode httpStatusCode, String httpContentType,
+            boolean useGzip, HashMap<Object, Object> headers) {
         this.httpStatusCode = httpStatusCode;
         this.useGzip = useGzip;
         this.httpContentType = httpContentType;
@@ -54,9 +53,10 @@ public class HttpBufferResponse extends HttpResponse {
     }
 
     @Override
-    public ByteBuffer getResponse() throws BufferOverflowException {
+    public ByteBuffer getResponse() {
         hasResponse = false;
-        if (headerSize + body.size() > MAX_RESPONSE_SIZE_BYTES) throw new BufferOverflowException();
+        if (headerSize + body.size() > MAX_RESPONSE_SIZE_BYTES)
+            return null;
 
         ByteBuffer response = ByteBuffer.allocate(headerSize + body.size());
         setBufferWithHeader(response, httpStatusCode, httpContentType, headers);
@@ -85,6 +85,8 @@ public class HttpBufferResponse extends HttpResponse {
             response.position(headerSize);
             response.flip();
             return response;
+        } catch (Exception ignored) {
+            return null;
         }
 
         response.flip();

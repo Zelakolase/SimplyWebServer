@@ -1,13 +1,12 @@
 package sws.http;
 
-import sws.http.exceptions.HttpRequestException;
+import static sws.http.config.ServerConfig.MAX_REQUEST_SIZE_BYTES;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-
-import static sws.http.config.ServerConfig.MAX_REQUEST_SIZE_BYTES;
+import sws.http.exceptions.HttpRequestException;
 
 public class HttpRequest {
     private final String path;
@@ -51,7 +50,8 @@ public class HttpRequest {
         }
     }
 
-    public void appendBuffer(ByteArrayOutputStream buffer) throws IOException, HttpRequestException {
+    public void appendBuffer(ByteArrayOutputStream buffer)
+            throws IOException, HttpRequestException {
         appendBuffer(buffer.toByteArray());
     }
 

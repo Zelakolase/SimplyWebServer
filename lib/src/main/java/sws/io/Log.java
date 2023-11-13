@@ -39,9 +39,9 @@ public class Log {
     /**
      * Display error message
      *
-     * @param e         the exception object to gain data from
+     * @param e the exception object to gain data from
      * @param className the name of the class where the error happened
-     * @param FuncName  the name of the function where the error happened
+     * @param FuncName the name of the function where the error happened
      */
     public static void e(Exception e, String className, String FuncName) {
         StringWriter sw = new StringWriter();

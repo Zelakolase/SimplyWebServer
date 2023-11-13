@@ -1,9 +1,6 @@
 package sws.http;
 
-import sws.http.config.HttpStatusCode;
-import sws.http.exceptions.HttpResponseException;
-import sws.io.Log;
-import sws.utils.Utils;
+import static sws.http.config.ServerConfig.*;
 
 import java.io.IOException;
 import java.nio.BufferOverflowException;
@@ -14,8 +11,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
-
-import static sws.http.config.ServerConfig.*;
+import sws.http.config.HttpStatusCode;
+import sws.http.exceptions.HttpResponseException;
+import sws.io.Log;
+import sws.utils.Utils;
 
 public class HttpFileResponse extends HttpResponse {
     private final FileChannel fileChannel;
@@ -23,15 +22,15 @@ public class HttpFileResponse extends HttpResponse {
     private final ByteBuffer body = ByteBuffer.allocateDirect(MAX_FILE_CHUNK_SIZE_BYTES);
     private boolean hasResponse = true;
     private boolean isHeaderSent = false;
-    private int headerSize = 64;   // enough to handle protocol version & status code
-
+    private int headerSize = 64; // enough to handle protocol version & status code
 
     public HttpFileResponse(String filePathString) throws IOException, HttpResponseException {
         this(filePathString, HttpStatusCode.OK, null, false, new HashMap<>());
     }
 
-
-    public HttpFileResponse(String filePathString, HttpStatusCode httpStatusCode, String httpContentType, boolean useGzip, HashMap<Object, Object> headers) throws IOException, HttpResponseException {
+    public HttpFileResponse(String filePathString, HttpStatusCode httpStatusCode,
+            String httpContentType, boolean useGzip, HashMap<Object, Object> headers)
+            throws IOException, HttpResponseException {
         this.filePath = Paths.get(ROOT_DIR, filePathString);
         this.fileChannel = FileChannel.open(filePath, StandardOpenOption.READ);
 
@@ -43,9 +42,11 @@ public class HttpFileResponse extends HttpResponse {
         if (httpContentType == null) {
             try {
                 String[] tempSplit = filePathString.split("\\.");
-                this.httpContentType = MIME.get(new HashMap<>() {{
-                    put("extension", tempSplit[tempSplit.length - 1]);
-                }}, "mime", 1).get(0);
+                this.httpContentType = MIME.get(new HashMap<>() {
+                    {
+                        put("extension", tempSplit[tempSplit.length - 1]);
+                    }
+                }, "mime", 1).get(0);
             } catch (Exception e) {
                 Log.e("failed to find mime in database");
                 String contentType = Files.probeContentType(filePath);
@@ -73,7 +74,8 @@ public class HttpFileResponse extends HttpResponse {
     @Override
     public boolean hasResponse() {
         try {
-            if (!hasResponse) fileChannel.close();
+            if (!hasResponse)
+                fileChannel.close();
         } catch (IOException e) {
             return false;
         }
@@ -98,7 +100,8 @@ public class HttpFileResponse extends HttpResponse {
         if (maxRead < this.body.capacity()) {
             this.body.limit(maxRead);
         }
-        if (fileChannel.read(this.body) == -1) hasResponse = false;
+        if (fileChannel.read(this.body) == -1)
+            hasResponse = false;
         this.body.flip();
         try {
             if (useGzip) {

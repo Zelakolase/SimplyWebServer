@@ -1,6 +1,6 @@
 package sws.http;
 
-import sws.http.config.HttpStatusCode;
+import static sws.http.config.ServerConfig.HTTP_PROTO_VERSION;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -8,9 +8,7 @@ import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
-
-import static sws.http.config.ServerConfig.HTTP_PROTO_VERSION;
-
+import sws.http.config.HttpStatusCode;
 
 public abstract class HttpResponse {
     protected final HashMap<String, String> headers = new HashMap<>();
@@ -18,8 +16,9 @@ public abstract class HttpResponse {
     protected String httpContentType;
     protected boolean useGzip = false;
 
-    public static void setBufferWithHeader(ByteBuffer buffer, HttpStatusCode httpStatusCode, String httpContentType,
-                                           HashMap<String, String> headers) throws BufferOverflowException {
+    public static void setBufferWithHeader(ByteBuffer buffer, HttpStatusCode httpStatusCode,
+            String httpContentType, HashMap<String, String> headers)
+            throws BufferOverflowException {
         buffer.put(HTTP_PROTO_VERSION.getBytes());
         buffer.put((byte) ' ');
         buffer.put(String.valueOf(httpStatusCode.getHtmlCode()).getBytes());
@@ -37,9 +36,9 @@ public abstract class HttpResponse {
         buffer.put("\r\n".getBytes());
     }
 
-    public static void setBufferWithHeader(ByteArrayOutputStream buffer, HttpStatusCode httpStatusCode,
-                                           String httpContentType,
-                                           HashMap<String, String> headers) throws BufferOverflowException, IOException {
+    public static void setBufferWithHeader(ByteArrayOutputStream buffer,
+            HttpStatusCode httpStatusCode, String httpContentType, HashMap<String, String> headers)
+            throws BufferOverflowException, IOException {
         buffer.write(HTTP_PROTO_VERSION.getBytes());
         buffer.write((byte) ' ');
         buffer.write(String.valueOf(httpStatusCode.getHtmlCode()).getBytes());
@@ -70,5 +69,4 @@ public abstract class HttpResponse {
     public abstract void addHeader(String header, String value);
 
     public abstract void deleteHeader(String header);
-
 }
