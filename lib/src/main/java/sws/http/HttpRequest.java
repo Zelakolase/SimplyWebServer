@@ -1,64 +1,78 @@
 package sws.http;
 
-import static sws.http.config.ServerConfig.MAX_REQUEST_SIZE_BYTES;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import sws.http.exceptions.HttpRequestException;
+import sws.io.Log;
 
 public class HttpRequest {
     private final String path;
     private final String httpRequestMethod;
-    private final ByteArrayOutputStream body = new ByteArrayOutputStream();
-    private final HashMap<String, String> headers = new HashMap<>();
-    private int headerSize = 0;
+    private final ByteArrayOutputStream body;
+    private final HashMap<String, String> headersMap = new HashMap<>();
 
-    public HttpRequest(ByteArrayOutputStream rawRequest) throws HttpRequestException {
-        String request = rawRequest.toString(StandardCharsets.US_ASCII);
-        String[] lines = request.split("\r\n");
-        if (lines.length == 0) {
-            throw new HttpRequestException("malformed http request");
+    public HttpRequest(String rawRequest) {
+        String[] httpRequestSections = rawRequest.split("\r\n\r\n"); // header and body
+        String[] headerLines, tokens;
+
+        if (httpRequestSections.length == 0) {
+            Log.e("Malformed http request: no header or body");
+            Log.e(rawRequest);
+            path = null;
+            httpRequestMethod = null;
+            body = null;
+            return;
+        } else if (httpRequestSections.length == 1) {
+            headerLines = httpRequestSections[0].split("\r\n");
+            body = null;
+        } else {
+            headerLines = httpRequestSections[0].split("\r\n");
+            body = new ByteArrayOutputStream(httpRequestSections[1].length());
         }
 
-        headerSize += lines[0].length() + 2;
-        String[] tokens = lines[0].split("\\s");
+        if (headerLines.length == 0) {
+            Log.e("Malformed http request: no headers");
+            Log.e(rawRequest);
+            path = null;
+            httpRequestMethod = null;
+            return;
+        }
 
-        httpRequestMethod = tokens[0];
+        tokens = headerLines[0].split("\\s");
+        if (tokens.length != 2 && tokens.length != 3) {
+            Log.e("Malformed http request: error parsing http method and path");
+            Log.e(rawRequest);
+            path = null;
+            httpRequestMethod = null;
+            return;
+        }
+
         path = tokens[1];
+        httpRequestMethod = tokens[0];
 
         int idx = 1;
-        for (; idx < lines.length && !lines[idx].isBlank(); ++idx) {
-            headerSize += lines[idx].length() + 2;
-            tokens = lines[idx].split(":", 2);
+        for (; idx < headerLines.length; ++idx) {
+            tokens = headerLines[idx].split(":", 2);
             if (tokens.length != 2) {
-                throw new HttpRequestException("missing colon in http header");
+                // TODO: better use warning than error
+                Log.e("Malformed http request: failed to parse header line (" + headerLines[idx]
+                        + ")");
+                continue;
             }
-            headers.put(tokens[0].toLowerCase().trim(), tokens[1].toLowerCase().trim());
+            headersMap.put(tokens[0].toLowerCase().trim(), tokens[1].toLowerCase().trim());
         }
-
-        headerSize += 2;
-        ++idx;
 
         try {
-            while (idx < lines.length) {
-                body.write(lines[idx++].getBytes());
-            }
-        } catch (IOException ignored) {
-            throw new HttpRequestException("couldn't parse http request body");
+            body.write(httpRequestSections[1].getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 
-    public void appendBuffer(ByteArrayOutputStream buffer)
-            throws IOException, HttpRequestException {
-        appendBuffer(buffer.toByteArray());
-    }
-
-    public void appendBuffer(byte[] buffer) throws IOException, HttpRequestException {
-        if (body.size() + buffer.length > MAX_REQUEST_SIZE_BYTES)
-            throw new HttpRequestException("request size is more that the configured maximum");
-        body.write(buffer);
+    public HttpRequest(ByteArrayOutputStream rawRequest) throws HttpRequestException {
+        this(rawRequest.toString(StandardCharsets.US_ASCII));
     }
 
     public String getPath() {
@@ -81,12 +95,8 @@ public class HttpRequest {
         return body.size();
     }
 
-    public int getHeaderSize() {
-        return headerSize;
-    }
-
-    public HashMap<String, String> getHeaders() {
-        return headers;
+    public HashMap<String, String> getHeadersMap() {
+        return headersMap;
     }
 
     public String getHttpRequestMethod() {

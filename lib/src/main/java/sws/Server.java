@@ -54,10 +54,8 @@ public class Server {
         @Override
         public void handle(EventLoopController eventLoopController, Selector selector,
                 SelectionKey key, OperationContext operationContext) {
-            final var channel = (SocketChannel) key.channel();
-            final var response = operationContext.attachment;
-
-            try {
+            try (final var channel = (SocketChannel) key.channel()) {
+                final var response = operationContext.attachment;
                 if (response == null) {
                     key.cancel();
                     channel.close();
@@ -109,31 +107,22 @@ public class Server {
                     tempBuffer.clear();
                 }
 
-                // TODO: proper handling
-                // if (readSize == 0) { // didn't reach end of stream, reschedule
-                // Log.e("here we fail");
-                // return;
-                // }
+                final var httpRequest = new HttpRequest(fullBuffer);
+                final var httpResponse = handler.apply(httpRequest);
+                operationContext.handler = new SocketWriteHandler();
+                operationContext.attachment = httpResponse.getResponse();
+                eventLoopController
+                        .pushEvent(new IOEvent(channel, SelectionKey.OP_WRITE, operationContext));
 
+            } catch (Exception e) {
                 try {
-                    final var httpRequest = new HttpRequest(fullBuffer);
-                    final var httpResponse = handler.apply(httpRequest);
-                    operationContext.handler = new SocketWriteHandler();
-                    operationContext.attachment = httpResponse.getResponse();
-                    key.cancel();
-                    eventLoopController.pushEvent(
-                            new IOEvent(channel, SelectionKey.OP_WRITE, operationContext));
-
-                } catch (Exception e) {
-                    key.cancel();
                     channel.close();
-                    e.printStackTrace();
+                } catch (IOException e1) {
+                    e1.printStackTrace();
                 }
-
-            } catch (IOException e) {
-                key.cancel();
                 e.printStackTrace();
             }
+            key.cancel();
         }
     }
 
@@ -147,16 +136,16 @@ public class Server {
             }
 
             try {
-                key.channel().configureBlocking(false);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+                final var channel = (ServerSocketChannel) key.channel();
+                channel.configureBlocking(false);
+                final var socket = channel.accept();
 
-            final var channel = (ServerSocketChannel) key.channel();
-            try {
-                eventLoopController.pushEvent(new IOEvent(channel.accept().configureBlocking(false),
-                        SelectionKey.OP_READ, new OperationContext(new SocketReadHandler(), null)));
-                currentConnections.incrementAndGet();
+                if (socket != null) {
+                    eventLoopController.pushEvent(
+                            new IOEvent(socket.configureBlocking(false), SelectionKey.OP_READ,
+                                    new OperationContext(new SocketReadHandler(), null)));
+                    currentConnections.incrementAndGet();
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }

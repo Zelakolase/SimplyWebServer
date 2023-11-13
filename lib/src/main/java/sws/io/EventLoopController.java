@@ -1,6 +1,7 @@
 package sws.io;
 
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.Selector;
 import java.util.ArrayList;
 import java.util.Random;
@@ -21,6 +22,17 @@ public class EventLoopController {
     public void pushEvent(IOEvent ioEvent) {
         ioEventQueue.add(ioEvent);
         selectors.get(random.nextInt(selectors.size())).wakeup();
+    }
+
+    public void pushEventToAll(IOEvent ioEvent) {
+        try {
+            for (var selector : selectors) {
+                selector.wakeup();
+                ioEvent.channel.register(selector, ioEvent.ops, ioEvent.opContext);
+            }
+        } catch (ClosedChannelException e) {
+            e.printStackTrace();
+        }
     }
 
     public EventLoop createEventLoop() throws IOException {
