@@ -3,7 +3,6 @@ package sws;
 import static sws.http.config.ServerConfig.MAX_CONCURRENT_CONNECTIONS;
 import static sws.http.config.ServerConfig.MAX_REQUEST_SIZE_BYTES;
 import static sws.http.config.ServerConfig.PORT;
-
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -30,7 +29,6 @@ import sws.io.OperationContext;
 import sws.io.OperationContext.Handler;
 
 public class Server {
-    public final int backlog;
     public final boolean useGzip;
     private final Function<HttpRequest, HttpResponse> handler;
     private final AtomicInteger currentConnections = new AtomicInteger();
@@ -40,7 +38,6 @@ public class Server {
     }
 
     public Server(Function<HttpRequest, HttpResponse> handler, boolean useGzip) {
-        this.backlog = MAX_CONCURRENT_CONNECTIONS * 5;
         this.useGzip = useGzip;
         this.handler = handler;
     }
@@ -199,7 +196,7 @@ public class Server {
         final var serverSocketFactory =
                 getSSLContext(Path.of(KeyStorePath), KeyStorePassword.toCharArray(), TLSVersion,
                         KeyStoreType, KeyManagerFactoryType).getServerSocketFactory();
-        final var channel = serverSocketFactory.createServerSocket(PORT, backlog).getChannel();
+        final var channel = serverSocketFactory.createServerSocket(PORT).getChannel();
 
         for (var i = 0; i < nCores; ++i) {
             threads[i] = new Thread(eventLoopController.createEventLoop());
