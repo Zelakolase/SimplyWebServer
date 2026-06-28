@@ -76,9 +76,9 @@ public class SparkDB {
      * @param data The input lines. First line should be the header. New line
      *             delimiters are '\n' and '\r'.<br>
      *             Headers example: <i>"username","password"</i><br>
-     *             Query Example: <i>"morad","123"</i><br>
+     *             Query Example: <i>"GILL","123"</i><br>
      *             Input String Argument Example:
-     *             <i><code>"username","password"\n"morad","123"</code></i>
+     *             <i><code>"username","password"\n"GILL","123"</code></i>
      */
     public void readFromString(String data) throws Exception {
         zero();
@@ -382,7 +382,7 @@ public class SparkDB {
     /**
      * A bidirectional list between index value and String value
      *
-     * @author Morad Abdelrasheed Mokhtar Ali Gill
+     * @author GILL GILL GILL GILL GILL
      */
     public static class HMList extends ArrayList<String> {
         /**
